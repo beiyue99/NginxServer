@@ -72,7 +72,7 @@ void ngx_master_process_cycle()
     CConfig *p_config = CConfig::GetInstance(); //单例类
     int workprocess = p_config->GetIntDefault("WorkerProcesses",1); //从配置文件中得到要创建的worker进程数量
     ngx_start_worker_processes(workprocess);  //这里要创建worker子进程
-
+    //此处为测试
     //创建子进程后，父进程的执行流程会返回到这里，子进程不会走进来    
     sigemptyset(&set); //信号屏蔽字为空，表示不屏蔽任何信号
     
