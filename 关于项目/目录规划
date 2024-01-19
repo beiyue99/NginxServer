@@ -1,0 +1,54 @@
+	//主目录名nginx
+	//a)_include目录：专门存放各种头文件
+	//b)app目录：放主应用程序.c(main()函数所在的文件)以及一些比较核心的文件；
+	   //b.1)link_obj：临时目录：会存放临时的.o文件，这个目录不手工创建，后续用makefile脚本来创建
+	   //b.2)dep：临时目录，会存放临时的.d开头的依赖文件，依赖文件能够告知系统哪些相关的文件发生变化，
+	   // 需要重新编译，后续用makefile脚本来创建
+	   //b.3)nginx.c：主文件，main()入口函数就放到这里；
+	   //b.4)ngx_conf.c  ，普通的源码文件，跟主文件关系密切
+	//c)misc目录：专门存放各种杂合性的不好归类的1到多个.c文件
+	//d)net目录：专门存放和网络处理相关的1到多个.c文件
+	//e)proc目录：专门存放和进程处理有古安的1到多个.c文件
+	//f)signal目录：专门用于存放和信号处理
+		//ngx_signal.c
+
+
+
+	//规划一下makefile文件的编写
+	//a)nginx根目录下我会放三个文件：
+	  //a.1)makefile：是咱们编译项目的入口脚本，编译项目从这里开始，起总体控制作用；
+	  //a.2）config.mk：这是个配置脚本，被makefile文件包含；单独分离出来是为了应付一些可变的东西,所以，一般变动的东西都往这里搞；
+	  //a.3)common.mk：是最重要最核心的编译脚本，定义makefile的编译规则，依赖规则等，通用性很强的一个脚本，
+	     //并且各个子目录中都用到这个脚本来实现对应子目录的.c文件的编译；
+
+	//b)每个子目录下都有一个叫做makefile的文件，每个这个makefile文件，都会包含根目录下的common.mk，
+	   //从而实现自己这个子目录下的.c文件的编译
+	//现在的makefile不支持目录中套子目录，除非自己修改；
+
+
+	//（2.4）makefile脚本具体实现讲解
+	//从common.mk讲起
+	//将来增加新目录时：	
+	//a)修改根目录下的config.mk来增加该目录
+	//b)在对应的目录下放入makefile文件，内容参考signal目录的makefile文件即可
+
+
+
+
+	//(i)ngx_master_process_cycle()        //创建子进程等一系列动作
+	//(i)    ngx_setproctitle()            //设置进程标题    
+	//(i)    ngx_start_worker_processes()  //创建worker子进程   
+	//(i)        for (i = 0; i < threadnums; i++)   //master进程在走这个循环，来创建若干个子进程
+	//(i)            ngx_spawn_process(i,"worker process");
+	//(i)                pid = fork(); //分叉，从原来的一个master进程（一个叉），
+	//                   分成两个叉（原有的master进程，以及一个新fork()出来的worker进程
+	//(i)                //只有子进程这个分叉才会执行ngx_worker_process_cycle()
+	//(i)                ngx_worker_process_cycle(inum,pprocname);  //子进程分叉
+	//(i)                    ngx_worker_process_init();
+	//(i)                        sigemptyset(&set);  
+	//(i)                        sigprocmask(SIG_SETMASK, &set, NULL); //允许接收所有信号
+	//(i)                        ngx_setproctitle(pprocname);          //重新为子进程设置标题为worker process
+	//(i)                        for ( ;; ) {}. ....                   //子进程开始在这里不断的死循环
+
+	//(i)    sigemptyset(&set); 
+	//(i)    for ( ;; ) {}                //父进程[master进程]会一直在这里循环
