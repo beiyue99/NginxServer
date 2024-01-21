@@ -20,35 +20,6 @@ pid = -1：将信号传送给系统内所有的进程       pid < -1：将信号
 
 
 
-    7 //父进程杀死子进程
-8 int main()
-9 {
-10     pid_t pid = -1;
-11     pid = fork();
-12     if (-1 == pid)
-13     {
-14         perror("fork");
-15         return 1;
-16     }
-17     if (pid == 0)
-18     {
-19         while (1)
-20         {
-21             printf("child process do work...\n");
-22             sleep(1);
-23         }
-24         exit(0);
-25     }
-26     else
-27     {
-28         //父进程
-29         sleep(3);
-30         printf("准备在父进程内杀死子进程\n");
-31         kill(pid, 15);
-32         printf("子进程已死亡\n");
-33     }
-34     return 0;
-35 }
 
 
 
@@ -168,20 +139,14 @@ int sigismember(const sigset_t* set, int signo);//判断信号signo是否存在
 
 sighandler_t signal(int signum, sighandler_t handler);
 
-signum:信号的编号，这里可以填数字，也可以填宏，可以通过命令kill - l查看
 handler : 有三种取值
 1.SIG_IGN : 忽略该信号
 2.SIG_DFL : 执行系统默认操作
-3.信号处理函数名 : 自定义信号处理函数，如func
-void func(int signo)
-{
-    //signo为触发的信号，为signal()第一个参数的值
-}
+3.信号处理函数名 : 自定义信号处理函数
 
 返回值： 成功的话，第一次返回NULL, 下一次返回此信号上一次注册的信号处理函数的地址。
 如果需要使用此返回值，必须在前面先声明此函数指针的类型
 失败返回 SIG_ERR
-
 
 在此函数中，用不可重入函数，可能出现问题
 //该函数尽量避免使用，用sigaction函数取而代之
@@ -318,62 +283,27 @@ struct sigaction
 
 
 
-1)
-sa_handler、sa_sigaction:信号处理函数指针, 和signal()里的函数指针用法一样, 应根据情况给
-sa_sigaction、sa_handler两者之一赋值, 其取值如下 :
-    a)SIG_IGN : 忽略该信号
-    b)SIG_DFL:执行系统默认动作
-    c)处理函数名:自定义信号处理函数
-
-
-    2)
-    sa_mask:信号阻塞集, 在信号处理函数执行过程中, 临时屏蔽指定的信号。
-
-
-    3)
-    sa_flgs:用于指定信号处理的行为, 通常设置为0, 表使用默认属性。它可以是一下值的“按位或"组合:
-    SA RESTART : 使被信号打断的系统调用自动重新发起(已经废弃)
-    SA NOCLDSTOP : 使父进程在它的子进程暂停或继续运行时不会收到SIGCHLD信号。
-    SA NOCLDWAIT : 使父进程在它的子进程退出时不会收到SIGCHLD信号, 这时子进程如果退出也不会成
-    为僵尸进程。
-    SA NODEFER : 使对信号的屏蔽无效, 即在信号处理函数执行期间仍能发出这个信号。
-    SA_RESETHAND : 信号处理之后重新设置为默认的处理方式。
-    SA_SIGINFO : 使用sa_sigaction成员而不是sa_handler作为信号处理函数。
-
-
-
-
-
-    void fun(int signo)
-{
-    printf("捕捉到信号%d\n", signo);
-}
-//演示sigaction函数使用
-int main(void)
-{
-    int ret = -1;
-    struct sigaction act;
-    //使用旧的信号处理函数指针
-    act.sa_handler = fun;
-    //标志为默认默认使用旧的信号处理函数指针
-    act.sa_flags = 0;
-    //信号注册
-    ret = sigaction(SIGINT, &act, NULL);
-    if (-1 == ret)
-    {
-        perror("sigaction");
-        return 1;
-    }
-    printf("按下任意键退出,.,,.\n");
-    while (1)
-    {
-        getchar();
-    }
-    return 0;
-}
-
-
-
+//1)
+//sa_handler、sa_sigaction:信号处理函数指针, 和signal()里的函数指针用法一样, 应根据情况给
+//sa_sigaction、sa_handler两者之一赋值, 其取值如下 :
+//    a)SIG_IGN : 忽略该信号
+//    b)SIG_DFL:执行系统默认动作
+//    c)处理函数名:自定义信号处理函数
+//
+//
+//    2)
+//    sa_mask:信号阻塞集, 在信号处理函数执行过程中, 临时屏蔽指定的信号。
+//
+//
+//    3)
+//    sa_flgs:用于指定信号处理的行为, 通常设置为0, 表使用默认属性。
+// 它可以是一下值的“按位或"组合:
+//    SA NOCLDSTOP : 使父进程在它的子进程暂停或继续运行时不会收到SIGCHLD信号。
+//    SA NOCLDWAIT : 使父进程在它的子进程退出时不会收到SIGCHLD信号, 这时子进程如果退出也不会成
+//    为僵尸进程。
+//    SA NODEFER : 使对信号的屏蔽无效, 即在信号处理函数执行期间仍能发出这个信号。
+//    SA_RESETHAND : 信号处理之后重新设置为默认的处理方式。
+//    SA_SIGINFO : 使用sa_sigaction成员而不是sa_handler作为信号处理函数。
 
 
 
@@ -383,43 +313,22 @@ void fun(int signo)
 {
     printf("捕捉到信号%d\n", signo);
 }
-//新的信号处理函数
-void funl(int signo, siginfo_t* info, void* context)
-{
-    printf("捕捉到信号%d\n", signo);
-}
 //演示sigaction函数使用
 int main(void)
 {
     int ret = -1;
-
-
-#if 0
     struct sigaction act;
     //使用旧的信号处理函数指针
     act.sa_handler = fun;
     //标志为默认默认使用旧的信号处理函数指针
     act.sa_flags = 0;
-
-
-#else
-    struct sigaction act;
-    //使用新的信号处理函数指针
-    act.sa_sigaction = funl;
-    //标志指定使用新的信号处理函数指针
-    act.sa_flags = SA_SIGINFO;
-#endif
     //信号注册
     ret = sigaction(SIGINT, &act, NULL);
-    if (-1 == ret)
-    {
-        perror("sigaction");
-        return 1;
-    }
-    printf("按下任意键退出,.,,.\n");
+    printf("屏蔽信号2成功！\n");
     while (1)
     {
-        getchar();
+        sleep(1);
+        printf("睡眠了1秒\n");
     }
     return 0;
 }
@@ -429,15 +338,21 @@ int main(void)
 
 
 
-int sigsuspend(const sigset_t* mask);
-该函数的目的是将当前进程的信号屏蔽集替换为由 mask 参数指定的信号集，然后挂起进程等待信号的到来。
-一旦收到任意一个信号，进程会恢复到原先的信号屏蔽集，并继续执行。
+
+//int sigsuspend(const sigset_t* mask);
+//该函数的目的是将当前进程的信号屏蔽集替换为由 mask 参数指定的信号集，然后挂起进程等待信号的到来。
+//一旦收到信号，进程会恢复到原先的信号屏蔽集，并继续执行。
 #include <stdio.h>
 #include <stdlib.h>
 #include <signal.h>
-
+#include<unistd.h>
 void signal_handler(int signo) {
     printf("Received signal %d\n", signo);
+    whi1e(1)
+    {
+        sleep(1);
+        printf("休息一秒\n");
+    }
 }
 
 int main() {
@@ -457,14 +372,8 @@ int main() {
 
     // 挂起进程等待 SIGINT 信号
     sigsuspend(&prev_mask);
-    
-
-    printf("Exiting.\n");
-
     return 0;
 }
 
-//调用 sigsuspend(&prev_mask); 时，prev_mask 中包含的信号是 调用 sigsuspend 期间被阻塞的信号
-//sigsuspend(&prev_mask) 只会阻塞 prev_mask 中指定的信号，而不会影响其他信号的处理。
-//在处理信号的时候，即使信号被阻塞，内核仍然会记录信号的发生。一旦信号处理函数执行完毕并从 sigsuspend 返回时，
-// 阻塞的信号会被解除阻塞，之前记录的信号就会生效，触发相应的信号处理函数。
+
+
