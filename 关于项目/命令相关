@@ -35,7 +35,7 @@ tail - f  txt     动态查看txt文件的内容
 	//kill -9 -1344   ，用负号组id，可以杀死一组进程	
 
 
-
+	: read !head - n 10 test.c
 
 
 

@@ -276,7 +276,7 @@ int mkfifo(const char* pathname, mode_t mode);
 
 
 
-: read !head - n 10 test.c
+
 
 
 

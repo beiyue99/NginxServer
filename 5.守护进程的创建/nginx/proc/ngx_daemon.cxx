@@ -54,12 +54,14 @@ int ngx_daemon()
         ngx_log_error_core(NGX_LOG_EMERG,errno,"ngx_daemon()中open(\"/dev/null\")失败!");        
         return -1;
     }
-    if (dup2(fd, STDIN_FILENO) == -1) //先关闭STDIN_FILENO[这是规矩，已经打开的描述符，动他之前，先close]，类似于指针指向null，让/dev/null成为标准输入；
+    if (dup2(fd, STDIN_FILENO) == -1) //先关闭STDIN_FILENO
+        // dup2 在执行时会先关闭目标文件描述符（即第二个参数 STDIN_FILENO 引用的文件描述符），
+        // 然后将源文件描述符（即第一个参数 fd）复制到目标文件描述符的位置。
     {
         ngx_log_error_core(NGX_LOG_EMERG,errno,"ngx_daemon()中dup2(STDIN)失败!");        
         return -1;
     }
-    if (dup2(fd, STDOUT_FILENO) == -1) //再关闭STDIN_FILENO，类似于指针指向null，让/dev/null成为标准输出；
+    if (dup2(fd, STDOUT_FILENO) == -1) //再关闭STDOUT_FILENO，类似于指针指向null，让/dev/null成为标准输出；
     {
         ngx_log_error_core(NGX_LOG_EMERG,errno,"ngx_daemon()中dup2(STDOUT)失败!");
         return -1;

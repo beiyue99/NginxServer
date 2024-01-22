@@ -14,16 +14,15 @@
 //一个信号有关的结构 ngx_signal_t
 typedef struct 
 {
-    int           signo;       //信号对应的数字编号 ，每个信号都有对应的#define ，大家已经学过了 
+    int           signo;      
     const  char   *signame;    //信号对应的中文名字 ，比如SIGHUP 
 
-    //信号处理函数,这个函数由我们自己来提供，但是它的参数和返回值是固定的【操作系统就这样要求】,大家写的时候就先这么写，也不用思考这么多；
     void  (*handler)(int signo, siginfo_t *siginfo, void *ucontext); //函数指针,   siginfo_t:系统定义的结构
 } ngx_signal_t;
 
 //声明一个信号处理函数
 static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext); //static表示该函数只在当前文件内可见
-static void ngx_process_get_status(void);                                      //获取子进程的结束状态，防止单独kill子进程时子进程变成僵尸进程
+static void ngx_process_get_status(void);     //获取子进程的结束状态，防止单独kill子进程时子进程变成僵尸进程
 
 //数组 ，定义本系统处理的各种信号，我们取一小部分nginx中的信号，并没有全部搬移到这里，日后若有需要根据具体情况再增加
 //在实际商业代码中，你能想到的要处理的信号，都弄进来
@@ -100,6 +99,7 @@ static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext)
         //找到对应信号，即可处理
         if (sig->signo == signo) 
         { 
+            printf("收到了信号%s\n",sig->signame);
             break;
         }
     } //end for
@@ -113,9 +113,9 @@ static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext)
         {
         case SIGCHLD:  //一般子进程退出会收到该信号
             ngx_reap = 1;  //标记子进程状态变化，日后master主进程的for(;;)循环中可能会用到这个变量【比如重新产生一个子进程】
+            printf("收到了sigchld信号，子进程状态变化了！\n");
             break;
 
-        //.....其他信号处理以后待增加
 
         default:
             break;
@@ -126,6 +126,7 @@ static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext)
         //worker进程的往这里走
         //......以后再增加
         //....
+        printf("子进程不用处理信号！\n");
     }
     else
     {
@@ -141,7 +142,8 @@ static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext)
     }
     else
     {
-        ngx_log_error_core(NGX_LOG_NOTICE,0,"signal %d (%s) received %s",signo, sig->signame, action);//没有发送该信号的进程id，所以不显示发送该信号的进程id
+        ngx_log_error_core(NGX_LOG_NOTICE,0,"signal %d (%s) received %s",signo, sig->signame, action);
+        //没有发送该信号的进程id，所以不显示发送该信号的进程id
     }
 
     //.......其他需要扩展的将来再处理；
@@ -166,13 +168,9 @@ static void ngx_process_get_status(void)
     //当你杀死一个子进程时，父进程会收到这个SIGCHLD信号。
     for ( ;; ) 
     {
-        //waitpid，有人也用wait,但老师要求大家掌握和使用waitpid即可；这个waitpid说白了获取子进程的终止状态，这样，子进程就不会成为僵尸进程了；
-        //第一次waitpid返回一个> 0值，表示成功，后边显示 2019/01/14 21:43:38 [alert] 3375: pid = 3377 exited on signal 9【SIGKILL】
-        //第二次再循环回来，再次调用waitpid会返回一个0，表示子进程还没结束，然后这里有return来退出；
         pid = waitpid(-1, &status, WNOHANG); //第一个参数为-1，表示等待任何子进程，
                                               //第二个参数：保存子进程的状态信息(大家如果想详细了解，可以百度一下)。
                                                //第三个参数：提供额外选项，WNOHANG表示不要阻塞，让这个waitpid()立即返回        
-
         if(pid == 0) //子进程没结束，会立即返回这个数字，但这里应该不是这个数字【因为一般是子进程退出时会执行到这个函数】
         {
             return;
@@ -180,7 +178,6 @@ static void ngx_process_get_status(void)
         //-------------------------------
         if(pid == -1)//这表示这个waitpid调用有错误，有错误也理解返回出去，我们管不了这么多
         {
-            //这里处理代码抄自官方nginx，主要目的是打印一些日志。考虑到这些代码也许比较成熟，所以，就基本保持原样照抄吧；
             err = errno;
             if(err == EINTR)           //调用被某个信号中断
             {
@@ -205,11 +202,15 @@ static void ngx_process_get_status(void)
         one = 1;  //标记waitpid()返回了正常的返回值
         if(WTERMSIG(status))  //获取使子进程终止的信号编号
         {
-            ngx_log_error_core(NGX_LOG_ALERT,0,"pid = %P exited on signal %d!",pid,WTERMSIG(status)); //获取使子进程终止的信号编号
+            ngx_log_error_core(NGX_LOG_ALERT,0,"pid = %P exited on signal %d!",pid,WTERMSIG(status));
+            //如果子进程是因为信号而终止的，那么 WTERMSIG(status) 将返回导致子进程终止的信号编号。
+            // 如果子进程是正常退出的，则该宏通常返回 0
         }
         else
         {
-            ngx_log_error_core(NGX_LOG_NOTICE,0,"pid = %P exited with code %d!",pid,WEXITSTATUS(status)); //WEXITSTATUS()获取子进程传递给exit或者_exit参数的低八位
+            ngx_log_error_core(NGX_LOG_NOTICE,0,"pid = %P exited with code %d!",pid,WEXITSTATUS(status));
+            //如果子进程是正常退出的，那么 WEXITSTATUS(status) 将返回子进程传递给 exit 函数的参数的低八位。
+            // 这个宏通常用于获取子进程的退出码
         }
     } //end for
     return;
