@@ -5,7 +5,7 @@ ps -eo pid,ppid,sid,tty,pgrp,comm,stat,cmd | grep -E 'bash|PID|nginx'
 kill - 19 暂停任务, kill - 18 恢复
 
 
-
+ps -o pid,ppid,cmd -p 957  常用命令
 
 ps命令：
 ps - a  // 显示终端上所有进程
