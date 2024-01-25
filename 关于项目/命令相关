@@ -25,7 +25,8 @@ killall - 9 sleep   //杀死所有名为 sleep的进程
 jobs查看后台进程
 tty查看当前终端名字
 
-
+	netstat -anp | grep -E 'State|9000'
+	netstat - tulnap  | grep 8080
 
 tail - f  txt     动态查看txt文件的内容
 
