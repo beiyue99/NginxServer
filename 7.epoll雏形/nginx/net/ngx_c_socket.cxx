@@ -225,13 +225,7 @@ int CSocekt::ngx_epoll_init()
     m_connection_n = m_worker_connections;      //记录当前连接池中连接总数
     //连接池【数组，每个元素是一个对象】
     m_pconnections = new ngx_connection_t[m_connection_n]; //new不可以失败，不用判断结果，如果失败直接报异常更好一些
-    //m_pread_events = new ngx_event_t[m_connection_n];      
-    //m_pwrite_events = new ngx_event_t[m_connection_n];          
-    //for(int i = 0; i < m_connection_n; i++)
-    //{
-    //    m_pconnections[i].instance = 1;   
-    //  //失效标志位设置为1【失效】，此句抄自官方nginx，这句到底有啥用，后续再研究
-    //} //end for
+
 
     int i = m_connection_n;                //连接池中连接数
     lpngx_connection_t next  = NULL;
@@ -243,7 +237,6 @@ int CSocekt::ngx_epoll_init()
         //好从屁股往前来---------
         c[i].data = next;         //设置连接对象的next指针，注意第一次循环时next = NULL;
         c[i].fd = -1;             //初始化连接，无socket和该连接池中的连接【对象】绑定
-        c[i].instance = 1;        //失效标志位设置为1【失效】，此句抄自官方nginx，这句到底有啥用，后续再研究
         c[i].iCurrsequence = 0;   //当前序号统一从0开始
         //----------------------
 
@@ -287,19 +280,7 @@ int CSocekt::ngx_epoll_init()
     return 1;
 }
 
-/*
-//(2)监听端口开始工作，监听端口要开始工作，必须为其增加读事件，因为监听端口只关心读事件
-void CSocekt::ngx_epoll_listenportstart()
-{
-    std::vector<lpngx_listening_t>::iterator pos;	
-	for(pos = m_ListenSocketList.begin(); pos != m_ListenSocketList.end(); ++pos) //vector
-	{	
-        //本函数如果失败，直接退出
-        ngx_epoll_add_event((*pos)->fd,1,0); //只关心读事件
-    } //end for
-    return;
-}
-*/
+
 
 //epoll增加事件，可能被ngx_epoll_init()等函数调用
 //fd:句柄，一个socket
@@ -344,10 +325,8 @@ int CSocekt::ngx_epoll_add_event(int fd,
         ev.events |= otherflag;
     }
 
-    //以下这段代码抄自nginx官方,因为指针的最后一位【二进制位】肯定不是1，所以 和 c->instance做 |运算；
-    // 到时候通过一些编码，既可以取得c的真实地址，又可以把此时此刻的c->instance值取到
-    //比如c是个地址，可能的值是 0x00af0578，而 | 1后是0x00af0579
-    ev.data.ptr = (void *)( (uintptr_t)c | c->instance);   
+
+    ev.data.ptr = (void *)( (uintptr_t)c );   
     //把对象弄进去，后续来事件时，用epoll_wait()后，这个对象能取出来用 
     //但同时把一个 标志位【不是0就是1】弄进去
 
@@ -415,16 +394,12 @@ int CSocekt::ngx_epoll_process_events(int timer)
 
     //走到这里，就是属于有事件收到了
     lpngx_connection_t c;
-    uintptr_t          instance;
     uint32_t           revents;
     for(int i = 0; i < events; ++i)    //遍历本次epoll_wait返回的所有事件，注意events才是返回的实际事件数量
     {
         c = (lpngx_connection_t)(m_events[i].data.ptr);           //ngx_epoll_add_event()给进去的，这里能取出来
-        instance = (uintptr_t) c & 1;                            
         //将地址的最后一位取出来
-        //ev.data.ptr = (void*)((uintptr_t)c | c->instance);
-        c = (lpngx_connection_t) ((uintptr_t)c & (uintptr_t) ~1); 
-        //最后1位干掉，得到真正的c地址
+        c = (lpngx_connection_t) ((uintptr_t)c ); 
 
         //仔细分析一下官方nginx的这个判断
         if(c->fd == -1)  //一个套接字，当关联一个 连接池中的连接【对象】时，这个套接字值是要给到c->fd的，
@@ -443,38 +418,7 @@ int CSocekt::ngx_epoll_process_events(int timer)
             continue; //这种事件就不处理即可
         }
 
-        if(c->instance != instance)
-        {
-            //--------------------以下这些说法来自于资料--------------------------------------
-            //什么时候这个条件成立呢？【换种问法：instance标志为什么可以判断事件是否过期呢？】
-            //比如我们用epoll_wait取得三个事件，处理第一个事件时，因为业务需要，
-            // 我们把这个连接关闭【麻烦就麻烦在这个连接被服务器关闭上了】，但是恰好第三个事件也跟这个连接有关；
-            //因为第一个事件就把socket连接关闭了，显然第三个事件我们是不应该处理的
-            // 【因为这是个过期事件】，若处理肯定会导致错误；
-            //那我们上述把c->fd设置为-1，可以解决这个问题吗？ 能解决一部分问题，但另外一部分不能解决，
-            // 不能解决的问题描述如下【这么离奇的情况应该极少遇到】：
-            //a)处理第一个事件时，因为业务需要，我们把这个连接【假设套接字为50】关闭，同时设置c->fd = -1;
-            // 并且调用ngx_free_connection将该连接归还给连接池；
-            //b)处理第二个事件，恰好第二个事件是建立新连接事件，调用ngx_get_connection从连接池中取出的连接
-            // 非常可能就是刚刚释放的第一个事件对应的连接池中的连接；
-            //c)又因为a中套接字50被释放了，所以会被操作系统拿来复用，复用给了b)【一般这么快就被复用也是醉了】；
-            //d)当处理第三个事件时，第三个事件其实是已经过期的，应该不处理，那怎么判断这第三个事件是过期的呢？
-            //  【假设现在处理的是第三个事件，此时这个 连接池中的该连接 实际上已经被用作第二个事件
-            // 对应的socket上了】；
-                //依靠instance标志位能够解决这个问题，当调用ngx_get_connection从连接池中获取一个新连接时，
-                // 我们把instance标志位置反，所以这个条件如果不成立，说明这个连接已经被挪作他用了；
-
-            //--------------------我的个人思考--------------------------------------
-            //如果收到了若干个事件，其中连接关闭也搞了多次，导致这个instance标志位被取反2次，那么，
-            // 造成的结果就是：还是有可能遇到某些过期事件没有被发现【这里也就没有被continue】，
-            // 照旧被当做没过期事件处理了；
-                  //如果是这样，那就只能被照旧处理了。可能会造成偶尔某个连接被误关闭？
-                  // 但是整体服务器程序运行应该是平稳，问题不大的，
-                  // 这种漏网而被当成没过期来处理的的过期事件应该是极少发生的
-
-            ngx_log_error_core(NGX_LOG_DEBUG,0,"CSocekt::ngx_epoll_process_events()中遇到了instance值改变的过期事件:%p.",c); 
-            continue; //这种事件就不处理即可
-        }
+        
 
         //能走到这里，我们认为这些事件都没过期，就正常开始处理
         revents = m_events[i].events;//取出事件类型

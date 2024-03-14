@@ -188,13 +188,8 @@ handler : 有三种取值
 
 
 
-//可以通过sigprocmask()修改当前的信号掩码来改变信号的阻塞情况
 int sigprocmask(int how, const sigset_t* set, sigset_t* oldset);
 //检查或修改信号阻塞集，根据how指定的方法对进程的阻塞集进行修改，新的信号阻塞集由set指定，原先的由oldset保存
-//参数 how   指定修改方法
-1. SIG_BLOCK:向信号阻塞集合中添加set信号集        mask = mask | set
-2. SIG_UNBLOCK : 从信号阻塞集合中删除set信号集      mask = mask & -set
-3. SIG_SETMASK : 替换                               mask = set
 //参数 set   要操作的信号集地址      若set为NULL，函数只会把当前的信号阻塞集合保存到oldset中
 成功返回0失败返回 - 1，失败时错误代码可能是EINVAL，表示how不合法
 

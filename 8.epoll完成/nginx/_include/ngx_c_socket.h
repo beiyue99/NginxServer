@@ -7,8 +7,8 @@
 #include <sys/socket.h>
 
 //一些宏定义放在这里-----------------------------------------------------------
-#define NGX_LISTEN_BACKLOG  511    //已完成连接队列
-#define NGX_MAX_EVENTS      512    //epoll_wait一次最多接收这么多个事件，nginx中缺省是512，我们这里固定给成512就行
+#define NGX_LISTEN_BACKLOG  511    
+#define NGX_MAX_EVENTS      512   
 
 typedef struct ngx_listening_s   ngx_listening_t, *lpngx_listening_t;
 typedef struct ngx_connection_s  ngx_connection_t,*lpngx_connection_t;
@@ -23,28 +23,23 @@ struct ngx_listening_s  //和监听端口有关的结构
 	lpngx_connection_t        connection;  //连接池中的一个连接，注意这是个指针 
 };
 
-//(1)该结构表示一个TCP连接【客户端主动发起的、Nginx服务器被动接受的TCP连接】
 struct ngx_connection_s
 {
+	
 	int                       fd;             //套接字句柄socket
-	lpngx_listening_t         listening;      
-	//如果这个链接被分配给了一个监听套接字，那么这个指向监听套接字对应的那个lpngx_listening_t的内存首地址		
-
-	uint64_t                  iCurrsequence;  
-	//我引入的一个序号，每次分配出去时+1，此法也有可能在一定程度上检测错包废包
+	lpngx_listening_t         listening;     
+	uint64_t                  iCurrsequence;  //我引入的一个序号，每次分配出去时+1，此法也有可能在一定程度上检测错包废包
 	struct sockaddr           s_sockaddr;     //保存对方地址信息用的
 
 	uint8_t                   w_ready;        //写准备好标记
-
 	ngx_event_handler_pt      rhandler;       //读事件的相关处理方法
 	ngx_event_handler_pt      whandler;       //写事件的相关处理方法
 	
-	//--------------------------------------------------
 	lpngx_connection_t        data;           
-	//后继指针，指向下一个本类型对象
 };
 
-//------------------------------------
+
+
 //socket相关类
 class CSocekt
 {
@@ -70,13 +65,10 @@ private:
 	void ngx_event_accept(lpngx_connection_t oldc);                    //建立新连接
 	void ngx_wait_request_handler(lpngx_connection_t c);               //设置数据来时的读处理函数
 
-	void ngx_close_accepted_connection(lpngx_connection_t c);        
-	//我们accept4()时，得到的socket在处理中产生失败，
-	// 则资源用这个函数释放【因为这里涉及到好几个要释放的资源，所以写成函数】
+	void ngx_close_accepted_connection(lpngx_connection_t c);          //用户连入，我们accept4()时，得到的socket在处理中产生失败，则资源用这个函数释放【因为这里涉及到好几个要释放的资源，所以写成函数】
 
 	//获取对端信息相关                                              
-	size_t ngx_sock_ntop(struct sockaddr *sa,int port,u_char *text,size_t len);  
-	//根据参数1给定的信息，获取地址端口字符串，返回这个字符串的长度
+	size_t ngx_sock_ntop(struct sockaddr *sa,int port,u_char *text,size_t len);  //根据参数1给定的信息，获取地址端口字符串，返回这个字符串的长度
 
 	//连接池 或 连接 相关
 	lpngx_connection_t ngx_get_connection(int isock);                  //从连接池中获取一个空闲连接
@@ -88,10 +80,10 @@ private:
 	int                            m_epollhandle;                      //epoll_create返回的句柄
 
 	//和连接池有关的
-	lpngx_connection_t             m_pconnections;             
-	//注意这里可是个指针，其实这是个连接池的首地址
-	lpngx_connection_t             m_pfree_connections;                
-	int                            m_connection_n;           //当前进程中所有连接对象的总数【连接池大小】
+	lpngx_connection_t             m_pconnections;                     //注意这里可是个指针，其实这是个连接池的首地址
+	lpngx_connection_t             m_pfree_connections;                //空闲连接链表头，连接池中总是有某些连接被占用，为了快速在池中找到一个空闲的连接，我把空闲的连接专门用该成员记录;
+	                                                                        //【串成一串，其实这里指向的都是m_pconnections连接池里的没有被使用的成员】
+	int                            m_connection_n;                     //当前进程中所有连接对象的总数【连接池大小】
 	int                            m_free_connection_n;                //连接池中可用连接总数
 
 

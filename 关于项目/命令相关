@@ -1,11 +1,12 @@
 
 //查看终端运行NGINX命令
-ps -eo pid,ppid,sid,tty,pgrp,comm,stat,cmd | grep -E 'bash|PID|nginx'
+ps -eo pid,ppid,sid,tty,pgrp,comm,stat,cmd | grep -E 'PID|nginx'
+-e是显示所有进程      -a也是，但是显示当前终端的所有进程                      
+
 
 kill - 19 暂停任务, kill - 18 恢复
 
-
-ps -o pid,ppid,cmd -p 957  常用命令
+ps -o pid,ppid,cmd -p 957  常用命令  967是进程id
 
 ps命令：
 ps - a  // 显示终端上所有进程
@@ -15,7 +16,7 @@ ps - r  //只显示正在运行的进程
 
 
 top ： 动态显示运行中的进程
-
+losf -i   显示监听的进程
 
 sleep 300 &  //在后台运行    ps -a可以显示，执行kill(PID)，终止该进程
 
