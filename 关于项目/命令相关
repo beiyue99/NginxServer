@@ -41,6 +41,8 @@ tail - f  txt     动态查看txt文件的内容
 
 
 
+	//top -p 3645 ：显示进程占用的内存和cpu百分比，用q可以退出；
+	//cat /proc/3645/status    ---------VmRSS:	    7700 kB
 
 
 

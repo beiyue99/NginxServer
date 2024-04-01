@@ -1,16 +1,12 @@
-	//主目录名nginx
-	//a)_include目录：专门存放各种头文件
-	//b)app目录：放主应用程序.c(main()函数所在的文件)以及一些比较核心的文件；
-	   //b.1)link_obj：临时目录：会存放临时的.o文件，这个目录不手工创建，后续用makefile脚本来创建
-	   //b.2)dep：临时目录，会存放临时的.d开头的依赖文件，依赖文件能够告知系统哪些相关的文件发生变化，
-	   // 需要重新编译，后续用makefile脚本来创建
-	   //b.3)nginx.c：主文件，main()入口函数就放到这里；
-	   //b.4)ngx_conf.c  ，普通的源码文件，跟主文件关系密切
-	//c)misc目录：专门存放各种杂合性的不好归类的1到多个.c文件
-	//d)net目录：专门存放和网络处理相关的1到多个.c文件
-	//e)proc目录：专门存放和进程处理有古安的1到多个.c文件
-	//f)signal目录：专门用于存放和信号处理
-		//ngx_signal.c
+
+
+
+ngx_logiccomm.h：定义与数据包有关的结构体，比如登录、注册
+
+ngx_comm.h：  定义包头，以及收包状态
+
+
+
 
 
 
@@ -36,6 +32,10 @@
 
 
 
+		//nginx中创建worker子进程
+	//官方nginx ,一个master进程，创建了多个worker子进程；
+	// master process ./nginx 
+	// worker process
 	//(i)ngx_master_process_cycle()        //创建子进程等一系列动作
 	//(i)    ngx_setproctitle()            //设置进程标题    
 	//(i)    ngx_start_worker_processes()  //创建worker子进程   
@@ -47,21 +47,21 @@
 	//(i)                    ngx_worker_process_init();
 	//(i)                        sigemptyset(&set);  
 	//(i)                        sigprocmask(SIG_SETMASK, &set, NULL); //允许接收所有信号
+	//(i)                        g_threadpool.Create(tmpthreadnums);  //创建线程池中线程
+	//(i)                        _socket.Initialize_subproc();  //初始化子进程需要具备的一些多线程能力相关的信息
 	//(i)                        g_socket.ngx_epoll_init();  //初始化epoll相关内容，同时 往监听socket上增加监听事件，从而开始让监听端口履行其职责
 	//(i)                            m_epollhandle = epoll_create(m_worker_connections); 
 	//(i)                            ngx_epoll_add_event((*pos)->fd....);
 	//(i)                                epoll_ctl(m_epollhandle,eventtype,fd,&ev);
 	//(i)                    ngx_setproctitle(pprocname);          //重新为子进程设置标题为worker process
-	//(i)                    for ( ;; ) 
-    //(i)                    {
-	//(i)                        //子进程开始在这里不断的死循环
-	//(i)                        ngx_process_events_and_timers(); //处理网络事件和定时器事件
+	//(i)                    for ( ;; ) {
+	//(i)                        ngx_process_events_and_timers(); //处理网络事件和定时器事件 
 	//(i)                            g_socket.ngx_epoll_process_events(-1); //-1表示卡着等待吧
-    //(i)                    }
+	//(i)                                epoll_wait();
+	//(i)                            g_socket.printTDInfo();
+	//(i)                    }. ....                   //子进程开始在这里不断的死循环
+	//(i)                    g_threadpool.StopAll();      //考虑在这里停止线程池；
+	//(i)					 g_socket.Shutdown_subproc(); //socket需要释放的东西考虑释放；	
 
 	//(i)    sigemptyset(&set); 
 	//(i)    for ( ;; ) {}.                //父进程[master进程]会一直在这里循环
-
-	//从ngx_epoll_process_events()的函数调用位置，我们能够感觉到：
-	//a)这个函数，仍旧是在子进程中被调用；
-	//b)这个函数，放在了子进程的for ( ;; ) ，这意味着这个函数会被不断的调用；
