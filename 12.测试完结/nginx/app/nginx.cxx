@@ -34,8 +34,6 @@ char    **g_os_argv;            //原始命令行参数数组,在main中会被�
 char    *gp_envmem=NULL;        //指向自己分配的env环境变量的内存，在ngx_init_setproctitle()函数中会被分配内存
 int     g_daemonized=0;         //守护进程标记，标记是否启用了守护进程模式，0：未启用，1：启用了
 
-//socket/线程池相关
-//CSocekt      g_socket;          //socket全局对象
 CLogicSocket   g_socket;        //socket全局对象  
 CThreadPool    g_threadpool;    //线程池全局对象
 
@@ -51,15 +49,11 @@ sig_atomic_t  ngx_reap;         //标记子进程状态变化[一般是子进程
 //程序主入口函数----------------------------------
 int main(int argc, char *const *argv)
 {     
-    //printf("%u,%u,%u",EPOLLERR ,EPOLLHUP,EPOLLRDHUP);  
-    //exit(0);
 
     int exitcode = 0;           //退出代码，先给0表示正常退出
     int i;                      //临时用
-    
     //(0)先初始化的变量
     g_stopEvent = 0;            //标记程序是否退出，0不退出          
-
     //(1)无伤大雅也不需要释放的放最上边    
     ngx_pid    = getpid();      //取得进程pid
     ngx_parent = getppid();     //取得父进程的id 
@@ -90,7 +84,6 @@ int main(int argc, char *const *argv)
     {   
         ngx_log_init();    //初始化日志
         ngx_log_stderr(0,"配置文件[%s]载入失败，退出!","nginx.conf");
-        //exit(1);终止进程，在main中出现和return效果一样 ,exit(0)表示程序正常, exit(1)/exit(-1)表示程序异常退出，exit(2)表示表示系统找不到指定的文件
         exitcode = 2; //标记找不到文件
         goto lblexit;
     }
@@ -98,10 +91,8 @@ int main(int argc, char *const *argv)
     CMemory::GetInstance();	
     //(2.2)crc32校验算法单例类可以在这里初始化，返回值不用保存
     CCRC32::GetInstance();
-        
     //(3)一些必须事先准备好的资源，先初始化
     ngx_log_init();             //日志初始化(创建/打开日志文件)，这个需要配置项，所以必须放配置文件载入的后边；     
-        
     //(4)一些初始化函数，准备放这里        
     if(ngx_init_signals() != 0) //信号初始化
     {
@@ -117,7 +108,6 @@ int main(int argc, char *const *argv)
     //(5)一些不好归类的其他类别的代码，准备放这里
     ngx_init_setproctitle();    //把环境变量搬家
 
-    //------------------------------------
     //(6)创建守护进程
     if(p_config->GetIntDefault("Daemon",0) == 1) //读配置文件，拿到配置文件中是否按守护进程方式启动的选项
     {
@@ -132,7 +122,6 @@ int main(int argc, char *const *argv)
         {
             //这是原始的父进程
             freeresource();   //只有进程退出了才goto到 lblexit，用于提醒用户进程退出了
-                              //而我现在这个情况属于正常fork()守护进程后的正常退出，不应该跑到lblexit()去执行，因为那里有一条打印语句标记整个进程的退出，这里不该限制该条打印语句；
             exitcode = 0;
             return exitcode;  //整个进程直接在这里退出
         }
@@ -143,19 +132,9 @@ int main(int argc, char *const *argv)
     //(7)开始正式的主工作流程，主流程一致在下边这个函数里循环，暂时不会走下来，资源释放啥的日后再慢慢完善和考虑    
     ngx_master_process_cycle(); //不管父进程还是子进程，正常工作期间都在这个函数里循环；
         
-    //--------------------------------------------------------------    
-    //for(;;)    
-    //{
-    //    sleep(1); //休息1秒        
-    //    printf("休息1秒\n");        
-    //}
-      
-    //--------------------------------------
 lblexit:
-    //(5)该释放的资源要释放掉
     ngx_log_stderr(0,"程序退出，再见了!");
     freeresource();  //一系列的main返回前的释放动作函数
-    //printf("程序退出，再见!\n");    
     return exitcode;
 }
 

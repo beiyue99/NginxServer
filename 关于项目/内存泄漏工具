@@ -1,3 +1,6 @@
+	
+	
+	
 	//格式：
 	//valgrind --tool=memcheck  一些开关      可执行文件名
 	//--tool=memcheck ：使用valgrind工具集中的memcheck工具
