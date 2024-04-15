@@ -9,7 +9,7 @@
 	//--trace-children = yes ：是否跟入子进程
 	//--log-file=log.txt：讲调试信息输出到log.txt，不输出到屏幕
 	//最终用的命令：
-	//valgrind --tool=memcheck --leak-check=full --show-reachable=yes ./nginx
+	//valgrind --tool=memcheck --leak-check=full --show-reachable=yes   ./nginx
 	//查看内存泄漏的三个地方：
 	//(1) 9 allocs, 8 frees  差值是1，就没泄漏，超过1就有泄漏
 	//(2)中间诸如： by 0x401363: CConfig::Load(char const*) (ngx_c_conf.cxx:77)和我们自己的源代码有关的提示，就要注意；

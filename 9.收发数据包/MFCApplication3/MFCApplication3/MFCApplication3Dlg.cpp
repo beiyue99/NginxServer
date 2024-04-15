@@ -117,7 +117,7 @@ void CMFCApplication3Dlg::OnBnClickedButton1()
 	memset(&server_in, 0, sizeof(SOCKADDR_IN));
 	server_in.sin_family = AF_INET;
 	server_in.sin_port = htons(80);
-	server_in.sin_addr.s_addr = inet_addr("192.168.1.126");
+	server_in.sin_addr.s_addr = inet_addr("127.0.0.1");
 
 	if (connect(sClient, (struct sockaddr *)&server_in, sizeof(SOCKADDR_IN)) == SOCKET_ERROR)
 	{

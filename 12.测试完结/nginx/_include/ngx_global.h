@@ -7,12 +7,6 @@
 #include "ngx_c_slogic.h"
 #include "ngx_c_threadpool.h"
 
-//一些比较通用的定义放在这里，比如typedef定义
-//一些全局变量的外部声明也放在这里
-
-//类型定义----------------
-
-//结构定义
 typedef struct _CConfItem
 {
 	char ItemName[50];

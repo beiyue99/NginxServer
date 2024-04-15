@@ -147,7 +147,6 @@ void freeresource()
         delete []gp_envmem;
         gp_envmem = NULL;
     }
-
     //(2)关闭日志文件
     if(ngx_log.fd != STDERR_FILENO && ngx_log.fd != -1)  
     {        

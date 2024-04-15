@@ -23,8 +23,6 @@ typedef class  CSocekt           CSocekt;
 
 typedef void (CSocekt::*ngx_event_handler_pt)(lpngx_connection_t c); //定义成员函数指针
 
-//--------------------------------------------
-//一些专用结构定义放在这里，暂时不考虑放ngx_global.h里了
 struct ngx_listening_s  //和监听端口有关的结构
 {
 	int                       port;        //监听的端口号
@@ -32,8 +30,6 @@ struct ngx_listening_s  //和监听端口有关的结构
 	lpngx_connection_t        connection;  //连接池中的一个连接，注意这是个指针 
 };
 
-//以下三个结构是非常重要的三个结构，我们遵从官方nginx的写法；
-//(1)该结构表示一个TCP连接【客户端主动发起的、Nginx服务器被动接受的TCP连接】
 struct ngx_connection_s
 {		
 	ngx_connection_s();                                      //构造函数
@@ -41,19 +37,11 @@ struct ngx_connection_s
 	void GetOneToUse();                                      //分配出去的时候初始化一些内容
 	void PutOneToFree();                                     //回收回来的时候做一些事情
 
-
 	int                       fd;                            //套接字句柄socket
 	lpngx_listening_t         listening;                     //如果这个链接被分配给了一个监听套接字，那么这个里边就指向监听套接字对应的那个lpngx_listening_t的内存首地址		
 
-	//------------------------------------	
-	//unsigned                  instance:1;                    //【位域】失效标志位：0：有效，1：失效【这个是官方nginx提供，到底有什么用，ngx_epoll_process_events()中详解】  
 	uint64_t                  iCurrsequence;                 //我引入的一个序号，每次分配出去时+1，此法也有可能在一定程度上检测错包废包，具体怎么用，用到了再说
 	struct sockaddr           s_sockaddr;                    //保存对方地址信息用的
-	//char                      addr_text[100]; //地址的文本信息，100足够，一般其实如果是ipv4地址，255.255.255.255，其实只需要20字节就够
-
-	//和读有关的标志-----------------------
-	//uint8_t                   r_ready;        //读准备好标记【暂时没闹明白官方要怎么用，所以先注释掉】
-	//uint8_t                   w_ready;        //写准备好标记
 
 	ngx_event_handler_pt      rhandler;                       //读事件的相关处理方法
 	ngx_event_handler_pt      whandler;                       //写事件的相关处理方法
@@ -87,8 +75,6 @@ struct ngx_connection_s
 	int                       FloodAttackCount;               //Flood攻击在该时间内收到包的次数统计
 	std::atomic<int>          iSendCount;                     //发送队列中有的数据条目数，若client只发不收，则可能造成此数过大，依据此数做出踢出处理 
 	
-
-	//--------------------------------------------------
 	lpngx_connection_t        next;                           //这是个指针，指向下一个本类型对象，用于把空闲的连接池对象串起来构成一个单向链表，方便取用
 };
 
@@ -97,7 +83,6 @@ typedef struct _STRUC_MSG_HEADER
 {
 	lpngx_connection_t pConn;         //记录对应的链接，注意这是个指针
 	uint64_t           iCurrsequence; //收到数据包时记录对应连接的序号，将来能用于比较是否连接已经作废用
-	//......其他以后扩展	
 }STRUC_MSG_HEADER,*LPSTRUC_MSG_HEADER;
 
 //------------------------------------
@@ -114,18 +99,15 @@ public:
 	void printTDInfo();                                                   //打印统计信息
 
 public:
-	virtual void threadRecvProcFunc(char *pMsgBuf);                       //处理客户端请求，虚函数，因为将来可以考虑自己来写子类继承本类
-	virtual void procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_time);  //心跳包检测时间到，该去检测心跳包是否超时的事宜，本函数只是把内存释放，子类应该重新事先该函数以实现具体的判断动作
+	virtual void threadRecvProcFunc(char *pMsgBuf);                   
+	virtual void procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_time); 
+	//心跳包检测时间到，该去检测心跳包是否超时的事宜
 
 public:	
 	int  ngx_epoll_init();                                                //epoll功能初始化	
-	//int  ngx_epoll_add_event(int fd,int readevent,int writeevent,uint32_t otherflag,uint32_t eventtype,lpngx_connection_t pConn);     
-	                                                                      //epoll增加事件
 	int  ngx_epoll_process_events(int timer);                             //epoll等待接收和处理事件
-
 	int ngx_epoll_oper_event(int fd,uint32_t eventtype,uint32_t flag,int bcaction,lpngx_connection_t pConn); 
 	                                                                      //epoll操作事件
-	
 protected:
 	//数据发送相关
 	void msgSend(char *psendbuf);                                         //把数据扔到待发送对列中 
@@ -145,16 +127,11 @@ private:
 
 	ssize_t recvproc(lpngx_connection_t pConn,char *buff,ssize_t buflen); //接收从客户端来的数据专用函数
 	void ngx_wait_request_handler_proc_p1(lpngx_connection_t pConn,bool &isflood); 
-	                                                                      //包头收完整后的处理，我们称为包处理阶段1：写成函数，方便复用      
 	void ngx_wait_request_handler_proc_plast(lpngx_connection_t pConn,bool &isflood);   
-	                                                                      //收到一个完整包后的处理，放到一个函数中，方便调用	
 	void clearMsgSendQueue();                                             //处理发送消息队列  
-
 	ssize_t sendproc(lpngx_connection_t c,char *buff,ssize_t size);       //将数据发送到客户端 
-
 	//获取对端信息相关                                              
 	size_t ngx_sock_ntop(struct sockaddr *sa,int port,u_char *text,size_t len);  //根据参数1给定的信息，获取地址端口字符串，返回这个字符串的长度
-
 	//连接池 或 连接 相关
 	void initconnection();                                                //初始化连接池
 	void clearconnection();                                               //回收连接池
@@ -169,11 +146,9 @@ private:
 	LPSTRUC_MSG_HEADER GetOverTimeTimer(time_t cur_time);                  //根据给的当前时间，从m_timeQueuemap找到比这个时间更老（更早）的节点【1个】返回去，这些节点都是时间超过了，要处理的节点      
 	void DeleteFromTimerQueue(lpngx_connection_t pConn);                  //把指定用户tcp连接从timer表中抠出去
 	void clearAllFromTimerQueue();                                        //清理时间队列中所有内容
-
 	//和网络安全有关
 	bool TestFlood(lpngx_connection_t pConn);                             //测试是否flood攻击成立，成立则返回true，否则返回false
 
-	
 	//线程相关函数
 	static void* ServerSendQueueThread(void *threadData);                 //专门用来发送数据的线程
 	static void* ServerRecyConnectionThread(void *threadData);            //专门用来回收连接的线程
@@ -195,13 +170,11 @@ private:
         pthread_t   _Handle;                                              //线程句柄
         CSocekt     *_pThis;                                              //记录线程池的指针	
         bool        ifrunning;                                            //标记是否正式启动起来，启动起来后，才允许调用StopAll()来释放
-
         //构造函数
         ThreadItem(CSocekt *pthis):_pThis(pthis),ifrunning(false){}                             
         //析构函数
         ~ThreadItem(){}        
     };
-
 
 	int                            m_worker_connections;                  //epoll连接的最大项数
 	int                            m_ListenPortCount;                     //所监听的端口数量
@@ -218,11 +191,6 @@ private:
 	std::atomic<int>               m_totol_recyconnection_n;              //待释放连接队列大小
 	int                            m_RecyConnectionWaitTime;              //等待这么些秒后才回收连接
 
-
-	//lpngx_connection_t             m_pfree_connections;                //空闲连接链表头，连接池中总是有某些连接被占用，为了快速在池中找到一个空闲的连接，我把空闲的连接专门用该成员记录;
-	                                                                        //【串成一串，其实这里指向的都是m_pconnections连接池里的没有被使用的成员】
-	
-	
 	
 	std::vector<lpngx_listening_t> m_ListenSocketList;                    //监听套接字队列
 	struct epoll_event             m_events[NGX_MAX_EVENTS];              //用于在epoll_wait()中承载返回的所发生的事件

@@ -6,29 +6,20 @@
 #include "MFCApplication3.h"
 #include "MFCApplication3Dlg.h"
 #include "afxdialogex.h"
-
 #include "ngx_c_crc32.h"
-
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
-
-
 // CMFCApplication3Dlg 对话框
-
-
-
 CMFCApplication3Dlg::CMFCApplication3Dlg(CWnd* pParent /*=nullptr*/)
 	: CDialogEx(IDD_MFCAPPLICATION3_DIALOG, pParent)
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
-
 void CMFCApplication3Dlg::DoDataExchange(CDataExchange* pDX)
 {
 	CDialogEx::DoDataExchange(pDX);
 }
-
 BEGIN_MESSAGE_MAP(CMFCApplication3Dlg, CDialogEx)
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
@@ -38,10 +29,7 @@ BEGIN_MESSAGE_MAP(CMFCApplication3Dlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON4, &CMFCApplication3Dlg::OnBnClickedButton4)
 	ON_BN_CLICKED(IDC_BUTTON5, &CMFCApplication3Dlg::OnBnClickedButton5)
 END_MESSAGE_MAP()
-
-
 // CMFCApplication3Dlg 消息处理程序
-
 BOOL CMFCApplication3Dlg::OnInitDialog()
 {
 	CDialogEx::OnInitDialog();
@@ -55,11 +43,9 @@ BOOL CMFCApplication3Dlg::OnInitDialog()
 
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
-
 // 如果向对话框添加最小化按钮，则需要下面的代码
 //  来绘制该图标。  对于使用文档/视图模型的 MFC 应用程序，
 //  这将由框架自动完成。
-
 void CMFCApplication3Dlg::OnPaint()
 {
 	if (IsIconic())
@@ -84,7 +70,6 @@ void CMFCApplication3Dlg::OnPaint()
 		CDialogEx::OnPaint();
 	}
 }
-
 //当用户拖动最小化窗口时系统调用此函数取得光标
 //显示。
 HCURSOR CMFCApplication3Dlg::OnQueryDragIcon()
@@ -93,12 +78,26 @@ HCURSOR CMFCApplication3Dlg::OnQueryDragIcon()
 }
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 SOCKET            sClient; //当全局量用
 //单击 连接 按钮 会调用本函数
 void CMFCApplication3Dlg::OnBnClickedButton1()
 {
-	// TODO: 在此添加控件通知处理程序代码
-	//AfxMessageBox(_T("aaaa"));
 	//连接
 	static int ifinit = false;
 	if (ifinit == false)
@@ -123,14 +122,12 @@ void CMFCApplication3Dlg::OnBnClickedButton1()
 	server_in.sin_family = AF_INET;
 	server_in.sin_port = htons(80);
 	server_in.sin_addr.s_addr = inet_addr("127.0.0.1");
-
 	if (connect(sClient, (struct sockaddr *)&server_in, sizeof(SOCKADDR_IN)) == SOCKET_ERROR)
 	{
 		AfxMessageBox(_T("connect()失败"));
 		closesocket(sClient);
 		return;
 	}
-
 	//(3)一般来讲可以设置个收发数据超时时间，以免send(),recv()函数调用时被完全卡主
 	int iSendRecvTimeOut = 5000;
 	if (setsockopt(sClient, SOL_SOCKET, SO_SNDTIMEO, (const char *)&iSendRecvTimeOut, sizeof(int)) == SOCKET_ERROR)
@@ -206,7 +203,6 @@ int  g_iLenPkgHeader = sizeof(COMM_PKG_HEADER);
 int RecvCommonData(SOCKET sClient, char *precvBuffer)
 {
 	int               bytes;
-
 	char              *ptmpbuf;
 	int               rbytes = 0;         //收到的总字节数
 	int               allowbytes;       //总共允许收这么多数据 
@@ -215,8 +211,10 @@ int RecvCommonData(SOCKET sClient, char *precvBuffer)
 	bytes = recv(sClient, precvBuffer, g_iLenPkgHeader, 0);  
 
 	if ((bytes == SOCKET_ERROR) || (bytes == 0))
+	{
+		AfxMessageBox(_T("recv出错，SOCKET_ERROR！"));
 		return SOCKET_ERROR;
-
+	}
 	ptmpbuf = precvBuffer;
 	allowbytes = g_iLenPkgHeader;
 	rbytes += bytes;
@@ -230,7 +228,11 @@ contrecvhead:
 		//继续收，
 		bytes = recv(sClient, ptmpbuf, allowbytes, 0);
 		if ((bytes == SOCKET_ERROR) || (bytes == 0))
+		{
+			AfxMessageBox(_T("recv出错，SOCKET_ERROR！"));
 			return SOCKET_ERROR;
+		}
+		
 		rbytes += bytes;
 		if (bytes < allowbytes)
 		{
@@ -246,10 +248,6 @@ recvqita:
 	LPCOMM_PKG_HEADER pPkgHeader;
 	pPkgHeader = (LPCOMM_PKG_HEADER)precvBuffer;
 	unsigned short iLen = ntohs(pPkgHeader->pkgLen); //包长
-	//if (iLen > _PKG_MAX_LENGTH)
-	//{
-	//	return SOCKET_ERROR;//非法数据包
-	//}
 	if (iLen == g_iLenPkgHeader)   //该包只有一个包头，已经收完
 	{
 		return iLen;
@@ -270,20 +268,25 @@ contrecv2:
 		ptmpbuf = ptmpbuf + bytes;    //内存向后移动
 		goto contrecv2;
 	}
+	CString message;
+	message.Format(_T("收到数据包大小是：%d"), rbytes);
+	AfxMessageBox(message);
+
 	//这里表示收够了
 	return rbytes;
 }
 
+
+
+
+
+
 //单击 发包 按钮 会调用本函数
 void CMFCApplication3Dlg::OnBnClickedButton2()
 {
-	// TODO: 在此添加控件通知处理程序代码
-	//AfxMessageBox(_T("bbbb"));
 	//先发个注册命令
 	CCRC32   *p_crc32 = CCRC32::GetInstance();
-
 	char *p_sendbuf = (char *)new char[g_iLenPkgHeader + sizeof(STRUCT_REGISTER)];
-
 	LPCOMM_PKG_HEADER         pinfohead;
 	pinfohead = (LPCOMM_PKG_HEADER)p_sendbuf;
 	pinfohead->msgCode = 5;
@@ -302,7 +305,6 @@ void CMFCApplication3Dlg::OnBnClickedButton2()
 	if (SendData(sClient, p_sendbuf, g_iLenPkgHeader + sizeof(STRUCT_REGISTER)) == SOCKET_ERROR)
 	{
 		AfxMessageBox(_T("SendData()失败"));
-		//测试程序也就不关闭socket，直接返回去算了
 		delete[] p_sendbuf; //内存总还是要释放的
 		return;
 	}
@@ -344,21 +346,40 @@ void CMFCApplication3Dlg::OnBnClickedButton2()
 
 
 //单击 收包 按钮 会调用本函数
-void CMFCApplication3Dlg::OnBnClickedButton3()
+ void CMFCApplication3Dlg::OnBnClickedButton3()
 {
-	// TODO: 在此添加控件通知处理程序代码
-	//Sleep(10000);
-	//这里收包
-	char    recvBuffer[100000] = { 0 };
-	int rec = RecvCommonData(sClient,recvBuffer);
+	char recvBuffer[100000] = { 0 };
+	int rec = RecvCommonData(sClient, recvBuffer);
+
 	if (rec == SOCKET_ERROR)
 	{
-		AfxMessageBox(_T("很不幸，接收数据失败"));
-		closesocket(sClient);
+		// 处理接收数据失败的情况
+		int errorCode = WSAGetLastError(); // 获取错误码
+		CString errorMsg;
+		errorMsg.Format(_T("接收数据失败，错误码：%d"), errorCode);
+		AfxMessageBox(errorMsg);
+
+		closesocket(sClient); // 关闭套接字
 		return;
 	}
-	AfxMessageBox(_T("非常好，接收数据成功!"));
+	else if (rec == 0)
+	{
+		// 对端正常关闭连接
+		AfxMessageBox(_T("对端已关闭连接"));
+
+		closesocket(sClient); // 关闭套接字
+		return;
+	}
+	else
+	{
+		// 处理接收数据成功的情况
+		CString receivedData(recvBuffer);
+		AfxMessageBox(_T("接收数据成功！"));
+		// TODO: 对接收到的数据进行进一步处理
+	}
 }
+
+
 
 
 //发心跳包
@@ -431,4 +452,10 @@ void CMFCApplication3Dlg::OnBnClickedButton5()
 	}
 	AfxMessageBox(_T("10个数据包发送完毕!"));
 }
+
+
+
+
+
+
 
