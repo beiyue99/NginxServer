@@ -38,12 +38,9 @@ static const handler statusHandler[] =
     NULL,                                                   //【2】：下标从0开始
     NULL,                                                   //【3】：下标从0开始
     NULL,                                                   //【4】：下标从0开始
-
     //开始处理具体的业务逻辑
     &CLogicSocket::_HandleRegister,                         //【5】：实现具体的注册功能
     &CLogicSocket::_HandleLogIn,                            //【6】：实现具体的登录功能
-
-
 };
 #define AUTH_TOTAL_COMMANDS sizeof(statusHandler)/sizeof(handler) //整个命令有多少个，编译时即可知道
 
@@ -66,6 +63,8 @@ bool CLogicSocket::Initialize()
     return bParentInit;
 }
 
+
+//拆解数据包，通过消息码调用对应的处理函数，该函数被线程池线程入口函数ThreadFunc调用
 void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 {          
     LPSTRUC_MSG_HEADER pMsgHeader = (LPSTRUC_MSG_HEADER)pMsgBuf;                  //消息头
@@ -76,7 +75,7 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
     if(m_iLenPkgHeader == pkglen)
     {
         //没有包体，只有包头
-		if(pPkgHeader->crc32 != 0) //只有包头的crc值给0
+		if(pPkgHeader->crc32 != 0) 
 		{
 			return; //crc错，直接丢弃
 		}
@@ -92,7 +91,7 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 		int calccrc = CCRC32::GetInstance()->Get_CRC((unsigned char *)pPkgBody,pkglen-m_iLenPkgHeader); //计算纯包体的crc值
 		if(calccrc != pPkgHeader->crc32) 
 		{
-            ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中CRC错误，丢弃数据!");    //正式代码中可以干掉这个信息
+            ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中CRC错误，丢弃数据!");  
 			return; //crc错，直接丢弃
 		}
 	}
@@ -103,16 +102,17 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 
     if(p_Conn->iCurrsequence != pMsgHeader->iCurrsequence) 
     {
-        return; //丢弃不理这种包了【客户端断开了】
+        ngx_log_stderr(0, "threadRecvProcFunc()::p_Conn->iCurrsequence != pMsgHeader->iCurrsequence，丢弃数据!");
+        return; 
     }
 
 	if(imsgCode >= AUTH_TOTAL_COMMANDS) 
     {
-        ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中imsgCode=%d消息码不对!",imsgCode); //这种有恶意倾向或者错误倾向的包，希望打印出来看看是谁干的
+        ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中imsgCode=%d消息码不对!",imsgCode); 
         return; //丢弃不理这种包【恶意包或者错误包】
     }
 
-    if(statusHandler[imsgCode] == NULL) //这种用imsgCode的方式可以使查找要执行的成员函数效率特别高
+    if(statusHandler[imsgCode] == NULL) 
     {
         ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中imsgCode=%d消息码找不到对应的处理函数!",imsgCode);
         return;  //没有相关的处理函数
@@ -122,7 +122,9 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
     return;	
 }
 
-//心跳包检测时间到，该去检测心跳包是否超时的事宜，本函数是子类函数，实现具体的判断动作
+
+
+//如果m_ifTimeOutKick开启，直接踢了这个连接。  否则检查lastPingTime与当前时间的差，决定要不要踢人
 void CLogicSocket::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_time)
 {
     CMemory *p_memory = CMemory::GetInstance();
@@ -131,12 +133,13 @@ void CLogicSocket::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_
     {
         lpngx_connection_t p_Conn = tmpmsg->pConn;
 
-        if(m_ifTimeOutKick == 1) 
+        if(m_ifTimeOutKick == 1)    //开启了到达指定时间踢出用户，这时候超时一个时间间隔就踢人
         {
-            zdClosesocketProc(p_Conn); 
-        }            
+            zdClosesocketProc(p_Conn);  //连接从时间表移除，删掉内存，放入待会收连接队列
+        }        
+
         else if( (cur_time - p_Conn->lastPingTime ) > (m_iWaitTime*3+10) ) 
-            //超时踢的判断标准就是 每次检查的时间间隔*3，超过这个时间没发送心跳包，就踢
+            //超过三个时间间隔+10不发心跳包，就踢人
         {
             zdClosesocketProc(p_Conn); 
         }   
@@ -169,8 +172,8 @@ void CLogicSocket::SendNoBodyPkgToClient(LPSTRUC_MSG_HEADER pMsgHeader,unsigned 
     return;
 }
 
-//----------------------------------------------------------------------------------------------------------
-//处理各种业务逻辑
+
+//处理各种业务逻辑，回客户端一个数据包，调用msgSend函数放入待发送消息队列
 bool CLogicSocket::_HandleRegister(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER pMsgHeader,char *pPkgBody,unsigned short iBodyLength)
 {
     ngx_log_stderr(0,"执行了CLogicSocket::_HandleRegister()!");
@@ -187,9 +190,7 @@ bool CLogicSocket::_HandleRegister(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER p
     {     
         return false; 
     }
-
     CLock lock(&pConn->logicPorcMutex);
-    
     //(3)取得了整个发送过来的数据
     LPSTRUCT_REGISTER p_RecvInfo = (LPSTRUCT_REGISTER)pPkgBody; 
     p_RecvInfo->iType = ntohl(p_RecvInfo->iType);         
@@ -198,15 +199,13 @@ bool CLogicSocket::_HandleRegister(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER p
 
 
     //。。。。。。。。处理数据包逻辑
-    // 释放内存
-    CMemory* p_memory = CMemory::GetInstance();
-    //p_memory->FreeMemory(p_RecvInfo);
 
 
 
     //给客户端回个同样的数据包
 	LPCOMM_PKG_HEADER pPkgHeader;	
-	CCRC32   *p_crc32 = CCRC32::GetInstance();
+    CMemory* p_memory = CMemory::GetInstance();
+    CCRC32   *p_crc32 = CCRC32::GetInstance();
     int iSendLen = sizeof(STRUCT_REGISTER);  
     //a)分配要发送出去的包的内存
 
@@ -214,6 +213,7 @@ bool CLogicSocket::_HandleRegister(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER p
     char *p_sendbuf = (char *)p_memory->AllocMemory(m_iLenMsgHeader+m_iLenPkgHeader+iSendLen,false);//准备发送的格式，这里是 消息头+包头+包体
     //b)填充消息头
     memcpy(p_sendbuf,pMsgHeader,m_iLenMsgHeader);                   //消息头直接拷贝到这里来
+
     //c)填充包头
     pPkgHeader = (LPCOMM_PKG_HEADER)(p_sendbuf+m_iLenMsgHeader);    //指向包头
     pPkgHeader->msgCode = _CMD_REGISTER;	                        //消息代码，可以统一在ngx_logiccomm.h中定义
@@ -239,7 +239,7 @@ bool CLogicSocket::_HandleLogIn(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER pMsg
 }
 
 
-//接收并处理客户端发送过来的ping包
+//接收并处理客户端发送过来的ping包，更新lastPingTime
 bool CLogicSocket::_HandlePing(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER pMsgHeader,char *pPkgBody,unsigned short iBodyLength)
 {
     //心跳包要求没有包体；

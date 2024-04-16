@@ -18,6 +18,12 @@
 #include "ngx_func.h"
 #include "ngx_c_socket.h"
 
+
+
+
+
+
+//建立新连接
 void CSocekt::ngx_event_accept(lpngx_connection_t oldc)
 {
     //因为listen套接字上用的不是ET【边缘触发】，而是LT【水平触发】，意味着客户端连入如果我要不处理，
@@ -71,11 +77,13 @@ void CSocekt::ngx_event_accept(lpngx_connection_t oldc)
 
             if (err == ECONNABORTED)  //对方关闭套接字
             {
+                ngx_log_stderr(0, "accept4中err == ECONNABORTED！");
                 //do nothing
             }
             
             if (err == EMFILE || err == ENFILE) 
             {
+                ngx_log_stderr(0, "accept4中err == ECONNABORTED！");
                 //do nothing
             }            
             return;
@@ -123,7 +131,7 @@ void CSocekt::ngx_event_accept(lpngx_connection_t oldc)
          if(ngx_epoll_oper_event(
                                 s,                  //socekt句柄
                                 EPOLL_CTL_ADD,      //事件类型，这里是增加
-                                EPOLLIN|EPOLLRDHUP, //标志，这里代表要增加的标志,EPOLLIN：可读，EPOLLRDHUP：TCP连接的远端关闭或者半关闭 ，如果边缘触发模式可以增加 EPOLLET
+                                EPOLLIN|EPOLLRDHUP, //EPOLLRDHUP：TCP连接的远端关闭或者半关闭 ，如果边缘触发模式可以增加 EPOLLET
                                 0,                  //对于事件类型为增加的，不需要这个参数
                                 newc                //连接池中的连接
                                 ) == -1)         

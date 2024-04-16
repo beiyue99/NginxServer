@@ -70,7 +70,7 @@ struct ngx_connection_s
 	time_t                    inRecyTime;                     //入到资源回收站里去的时间
 
 	//和心跳包有关
-	time_t                    lastPingTime;                   //上次ping的时间【上次发送心跳包的事件】
+	time_t                    lastPingTime;                   //上次ping的时间【上次发送心跳包的时间】
 
 	//和网络安全有关	
 	uint64_t                  FloodkickLastTime;              //Flood攻击上次收到包的时间

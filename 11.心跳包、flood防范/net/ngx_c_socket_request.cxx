@@ -19,13 +19,19 @@
 #include "ngx_func.h"
 #include "ngx_c_socket.h"
 #include "ngx_c_memory.h"
-#include "ngx_c_lockmutex.h"  //自动释放互斥量的一个类
+#include "ngx_c_lockmutex.h"  
 
+
+
+
+
+//调用recvproc接受数据，收完调用ngx_wait_request_handler_proc_plast入消息队列并激发线程处理
 void CSocekt::ngx_read_request_handler(lpngx_connection_t pConn)
 {  
-    bool isflood = false; //是否flood攻击；
+    bool isflood = false; 
 
     ssize_t reco = recvproc(pConn,pConn->precvbuf,pConn->irecvlen); 
+    //返回-1是断开或者错误
     if(reco <= 0)  
     {
         return;
@@ -39,14 +45,14 @@ void CSocekt::ngx_read_request_handler(lpngx_connection_t pConn)
         }
         else
 		{
-            pConn->curStat        = _PKG_HD_RECVING;                 //接收包头中，包头不完整，继续接收包头中	
-            pConn->precvbuf       = pConn->precvbuf + reco;              //注意收后续包的内存往后走
-            pConn->irecvlen       = pConn->irecvlen - reco;              //要收的内容当然要减少，以确保只收到完整的包头先
+            pConn->curStat        = _PKG_HD_RECVING;                
+            pConn->precvbuf       = pConn->precvbuf + reco;          
+            pConn->irecvlen       = pConn->irecvlen - reco;            
         }
     } 
     else if(pConn->curStat == _PKG_HD_RECVING) 
     {
-        if(pConn->irecvlen == reco) 
+        if(reco==pConn->irecvlen )
         {
             ngx_wait_request_handler_proc_p1(pConn,isflood);
         }
@@ -59,19 +65,16 @@ void CSocekt::ngx_read_request_handler(lpngx_connection_t pConn)
     }
     else if(pConn->curStat == _PKG_BD_INIT) 
     {
-        //包头刚好收完，准备接收包体
         if(reco == pConn->irecvlen)
         {
-            //收到的宽度等于要收的宽度，包体也收完整了
             if(m_floodAkEnable == 1) 
             {
-                isflood = TestFlood(pConn);
+                isflood = TestFlood(pConn);  //如果频繁，FloodAttackCount++，达到一定次数就踢出
             }
             ngx_wait_request_handler_proc_plast(pConn,isflood);
         }
         else
 		{
-			//收到的宽度小于要收的宽度
 			pConn->curStat = _PKG_BD_RECVING;					
 			pConn->precvbuf = pConn->precvbuf + reco;
 			pConn->irecvlen = pConn->irecvlen - reco;
@@ -79,7 +82,6 @@ void CSocekt::ngx_read_request_handler(lpngx_connection_t pConn)
     }
     else if(pConn->curStat == _PKG_BD_RECVING) 
     {
-        //接收包体中，包体不完整，继续接收中
         if(pConn->irecvlen == reco)
         {
             //包体收完整了
@@ -150,21 +152,19 @@ ssize_t CSocekt::recvproc(lpngx_connection_t pConn,char *buff,ssize_t buflen)  /
 }
 
 
-//包头收完整后的处理，我们称为包处理阶段1【p1】：写成函数，方便复用
-//注意参数isflood是个引用
+//拆解包头，new出收pTmpBuffer指针，指向消息头+包头+包体大小的内存，拷贝包头进来，然后收包体
 void CSocekt::ngx_wait_request_handler_proc_p1(lpngx_connection_t pConn,bool &isflood)
 {    
     CMemory *p_memory = CMemory::GetInstance();		
 
     LPCOMM_PKG_HEADER pPkgHeader;
-    pPkgHeader = (LPCOMM_PKG_HEADER)pConn->dataHeadInfo; //正好收到包头时，包头信息肯定是在dataHeadInfo里；
+    pPkgHeader = (LPCOMM_PKG_HEADER)pConn->dataHeadInfo; //之前初始化了头指针指向dateHeadInfo
 
     unsigned short e_pkgLen; 
     e_pkgLen = ntohs(pPkgHeader->pkgLen);  
     //恶意包或者错误包的判断
     if(e_pkgLen < m_iLenPkgHeader) 
     {
-        //报文总长度 < 包头长度，认定非法用户，废包
         pConn->curStat = _PKG_HD_INIT;      
         pConn->precvbuf = pConn->dataHeadInfo;
         pConn->irecvlen = m_iLenPkgHeader;
@@ -178,9 +178,7 @@ void CSocekt::ngx_wait_request_handler_proc_p1(lpngx_connection_t pConn,bool &is
     else
     {
         //合法的包头，继续处理
-        //我现在要分配内存开始收包体，因为包体长度并不是固定的，所以内存肯定要new出来；
         char *pTmpBuffer  = (char *)p_memory->AllocMemory(m_iLenMsgHeader + e_pkgLen,false);
-        //分配内存【长度是 消息头长度  + 包头长度 + 包体长度】，最后参数先给false，表示内存不需要memset;        
         pConn->precvMemPointer = pTmpBuffer;  //内存开始指针
 
         //a)先填写消息头内容
@@ -204,14 +202,17 @@ void CSocekt::ngx_wait_request_handler_proc_p1(lpngx_connection_t pConn,bool &is
         {
             //开始收包体，注意我的写法
             pConn->curStat = _PKG_BD_INIT;                   //当前状态发生改变，包头刚好收完，准备接收包体	    
-            pConn->precvbuf = pTmpBuffer + m_iLenPkgHeader;  //pTmpBuffer指向包头，这里 + m_iLenPkgHeader后指向包体 weizhi
-            pConn->irecvlen = e_pkgLen - m_iLenPkgHeader;    //e_pkgLen是整个包【包头+包体】大小，-m_iLenPkgHeader【包头】  = 包体
+            pConn->precvbuf = pTmpBuffer + m_iLenPkgHeader;  
+            pConn->irecvlen = e_pkgLen - m_iLenPkgHeader;    
         }                       
     } 
 
     return;
 }
 
+
+
+//收到一个完整消息后，入消息队列，并调用inMsgRecvQueueAndSignal触发线程池中线程来处理该消息
 void CSocekt::ngx_wait_request_handler_proc_plast(lpngx_connection_t pConn,bool &isflood)
 {
     if(isflood == false)
@@ -272,12 +273,15 @@ ssize_t CSocekt::sendproc(lpngx_connection_t c,char *buff,ssize_t size)
 
 void CSocekt::ngx_write_request_handler(lpngx_connection_t pConn)
 {      
+    ngx_log_stderr(errno, "ngx_write_request_handler被调用！！");
     CMemory *p_memory = CMemory::GetInstance();
     
     ssize_t sendsize = sendproc(pConn,pConn->psendbuf,pConn->isendlen);
 
     if(sendsize > 0 && sendsize != pConn->isendlen)
     {        
+        
+        ngx_log_stderr(errno, "ngx_write_request_handler发送了%d数据，实际要发送%d数据！！",sendsize,isendlen);
         //没有全部发送完毕，数据只发出去了一部分，那么发送到了哪里，剩余多少，继续记录，方便下次sendproc()时使用
         pConn->psendbuf = pConn->psendbuf + sendsize;
 		pConn->isendlen = pConn->isendlen - sendsize;	
@@ -316,6 +320,8 @@ void CSocekt::ngx_write_request_handler(lpngx_connection_t pConn)
     return;
 }
 
+
+//虚函数，被子类重写
 void CSocekt::threadRecvProcFunc(char *pMsgBuf)
 {   
     return;

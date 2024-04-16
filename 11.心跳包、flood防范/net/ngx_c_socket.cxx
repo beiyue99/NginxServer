@@ -301,14 +301,12 @@ void CSocekt::ngx_close_listening_sockets()
     return;
 }
 
-//将一个待发送消息入到发消息队列中
+//将一个待发送消息入到发消息队列中，将信号量的值+1,这样其他卡在sem_wait的就可以走下去
 void CSocekt::msgSend(char *psendbuf) 
 {
     CLock lock(&m_sendMessageQueueMutex);  //互斥量
     m_MsgSendQueue.push_back(psendbuf);    
     ++m_iSendMsgQueueCount;   //原子操作
-
-    //将信号量的值+1,这样其他卡在sem_wait的就可以走下去
     if(sem_post(&m_semEventSendQueue)==-1)  
     {
          ngx_log_stderr(0,"CSocekt::msgSend()中sem_post(&m_semEventSendQueue)失败.");      
@@ -316,15 +314,20 @@ void CSocekt::msgSend(char *psendbuf)
     return;
 }
 
+
+//调用inRecyConnectQueue放入待回收连接队列
 void CSocekt::zdClosesocketProc(lpngx_connection_t p_Conn)
 {
-    if(m_ifkickTimeCount == 1)
-    {
-        DeleteFromTimerQueue(p_Conn); //从时间队列中把连接干掉
-    }
+    //把指定用户tcp连接从timer表中删除
+    //if(m_ifkickTimeCount == 1)
+    //{
+        DeleteFromTimerQueue(p_Conn);
+    //}
+
+    //关闭socket
     if(p_Conn->fd != -1)
     {   
-        close(p_Conn->fd); //这个socket关闭，关闭后epoll就会被从红黑树中删除，所以这之后无法收到任何epoll事件
+        close(p_Conn->fd); 
         p_Conn->fd = -1;
     }
 
@@ -332,6 +335,7 @@ void CSocekt::zdClosesocketProc(lpngx_connection_t p_Conn)
         --p_Conn->iThrowsendCount;   //归0
 
     inRecyConnectQueue(p_Conn);
+    //放入待回收连接队列
     return;
 }
 
@@ -462,7 +466,7 @@ int CSocekt::ngx_epoll_oper_event(
 
 
 
-
+//调用epoll_wait返回事件并处理
 int CSocekt::ngx_epoll_process_events(int timer) 
 {   
     int events = epoll_wait(m_epollhandle,m_events,NGX_MAX_EVENTS,timer);
@@ -535,6 +539,9 @@ int CSocekt::ngx_epoll_process_events(int timer)
 
 
 
+
+
+//发消息队列数据的线程
 void* CSocekt::ServerSendQueueThread(void* threadData)
 {    
     ThreadItem *pThread = static_cast<ThreadItem*>(threadData);
@@ -603,7 +610,7 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                 p_Conn->psendbuf = (char *)pPkgHeader;   
                 itmp = ntohs(pPkgHeader->pkgLen);        //包头+包体 长度 ，打包时用了htons【本机序转网络序】
                 p_Conn->isendlen = itmp;                 //要发送多少数据（包头加包体）
-                                
+                                 
 	                //开始不把socket写事件通知加入到epoll,当我需要写数据的时候，直接调用write/send发送数据；
 	                //如果返回了EAGIN【发送缓冲区满了，需要等待可写事件才能继续往缓冲区里写数据】，此时，我再把写事件通知加入到epoll，
 	                //此时，就变成了在epoll驱动下写数据，全部数据发送完毕后，再把写事件通知从epoll中干掉；
@@ -638,7 +645,8 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                             ngx_log_stderr(errno,"CSocekt::ServerSendQueueThread()ngx_epoll_oper_event()失败.");
                         }
 
-                        ngx_log_stderr(errno,"CSocekt::ServerSendQueueThread()中数据没发送完毕【发送缓冲区满】，要发送%d，实际发送了%d!",p_Conn->isendlen+sendsize,sendsize);
+                        ngx_log_stderr(errno,"CSocekt::ServerSendQueueThread()中数据没发送完毕【发送缓冲区满】，要发送%d，实际发送了%d!",
+                            p_Conn->isendlen+sendsize,sendsize);
 
                     } 
                     continue;  //继续处理其他消息                    
@@ -652,9 +660,10 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                     continue;
                 }
 
+                //标记发送缓冲区满了，需要通过epoll事件来驱动消息的继续发送
                 else if(sendsize == -1)
                 {
-                    ++p_Conn->iThrowsendCount; //标记发送缓冲区满了，需要通过epoll事件来驱动消息的继续发送
+                    ++p_Conn->iThrowsendCount; 
                     if(pSocketObj->ngx_epoll_oper_event(
                                 p_Conn->fd,         //socket句柄
                                 EPOLL_CTL_MOD,      //事件类型，这里是增加【因为我们准备增加个写通知】
@@ -676,7 +685,6 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                 }
 
             } 
-
             err = pthread_mutex_unlock(&pSocketObj->m_sendMessageQueueMutex); 
             if(err != 0)  ngx_log_stderr(err,"CSocekt::ServerSendQueueThread()pthread_mutex_unlock()失败，返回的错误码为%d!",err);
             

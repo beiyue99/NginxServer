@@ -40,6 +40,11 @@ void CThreadPool::clearMsgRecvQueue()
 	}	
 }
 
+
+
+
+//线程池创建threadNum数量的线程，线程入口函数是ThreadFunc
+//该函数等待所有线程启动起来返回
 bool CThreadPool::Create(int threadNum)
 {    
     ThreadItem *pNew;
@@ -64,38 +69,37 @@ lblfor:
     {
         if( (*iter)->ifrunning == false) //这个条件保证所有线程完全启动起来，以保证整个线程池中的线程正常工作；
         {
-            //这说明有没有启动完全的线程
-            usleep(100 * 1000);  //单位是微妙,又因为1毫秒=1000微妙，所以 100 *1000 = 100毫秒
+            usleep(100 * 1000);
             goto lblfor;
         }
     }
     return true;
 }
 
+
+
+
 //线程入口函数，当用pthread_create()创建线程后，这个ThreadFunc()函数都会被立即执行；
+//被阻塞在条件变量，否则走下去调用threadRecvProcFunc处理消息
 void* CThreadPool::ThreadFunc(void* threadData)
 {
     //这个是静态成员函数，是不存在this指针的；
     ThreadItem *pThread = static_cast<ThreadItem*>(threadData);
     CThreadPool *pThreadPoolObj = pThread->_pThis;
-    
     CMemory *p_memory = CMemory::GetInstance();	    
     int err;
-
     pthread_t tid = pthread_self(); //获取线程自身id，以方便调试打印信息等    
     while(true)
     {
         err = pthread_mutex_lock(&m_pthreadMutex);  
-        if(err != 0) ngx_log_stderr(err,"CThreadPool::ThreadFunc()中pthread_mutex_lock()失败，返回的错误码为%d!",err);//有问题，要及时报告
-        
-
+        if(err != 0) ngx_log_stderr(err,"CThreadPool::ThreadFunc()中pthread_mutex_lock()失败，返回的错误码为%d!",err);
+        //让所有线程标记为true，然后阻塞在条件变量。当接受消息队列有数据，会走下去处理消息
         while ( (pThreadPoolObj->m_MsgRecvQueue.size() == 0) && m_shutdown == false)
         {
             if(pThread->ifrunning == false)            
                 pThread->ifrunning = true; 
             pthread_cond_wait(&m_pthreadCond, &m_pthreadMutex);
         }
-
 
         //先判断线程退出这个条件
         if(m_shutdown)
@@ -111,8 +115,8 @@ void* CThreadPool::ThreadFunc(void* threadData)
                
         //可以解锁互斥量了
         err = pthread_mutex_unlock(&m_pthreadMutex); 
-        if(err != 0)  ngx_log_stderr(err,"CThreadPool::ThreadFunc()中pthread_mutex_unlock()失败，返回的错误码为%d!",err);//有问题，要及时报告
-        
+        if(err != 0)  ngx_log_stderr(err,"CThreadPool::ThreadFunc()中pthread_mutex_unlock()失败，返回的错误码为%d!",err);
+
         //能走到这里的，就是有消息可以处理，开始处理
         ++pThreadPoolObj->m_iRunningThreadNum;    //原子+1【记录正在干活的线程数量增加1】，这比互斥量要快很多
 
@@ -129,7 +133,6 @@ void* CThreadPool::ThreadFunc(void* threadData)
 //停止所有线程【等待结束线程池中所有线程，该函数返回后，应该是所有线程池中线程都结束了】
 void CThreadPool::StopAll() 
 {
-    //(1)已经调用过，就不要重复调用了
     if(m_shutdown == true)
     {
         return;
@@ -167,8 +170,9 @@ void CThreadPool::StopAll()
     return;    
 }
 
-//--------------------------------------------------------------------------------------
-//收到一个完整消息后，入消息队列，并触发线程池中线程来处理该消息
+
+
+//入消息队列，并调用Call触发线程池中线程来处理该消息，该函数被ngx_wait_request_handler_proc_plast调用
 void CThreadPool::inMsgRecvQueueAndSignal(char *buf)
 {
     //互斥
@@ -192,13 +196,13 @@ void CThreadPool::inMsgRecvQueueAndSignal(char *buf)
     return;
 }
 
-//来任务了，调一个线程池中的线程下来干活
+
+//调用pthread_cond_signal通知一个线程池中的线程下来干活
 void CThreadPool::Call()
 {
     int err = pthread_cond_signal(&m_pthreadCond);
     if(err != 0 )
     {
-        //这是有问题啊，要打印日志啊
         ngx_log_stderr(err,"CThreadPool::Call()中pthread_cond_signal()失败，返回的错误码为%d!",err);
     }
 
