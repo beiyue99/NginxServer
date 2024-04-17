@@ -281,7 +281,7 @@ void CSocekt::ngx_write_request_handler(lpngx_connection_t pConn)
     if(sendsize > 0 && sendsize != pConn->isendlen)
     {        
         
-        ngx_log_stderr(errno, "ngx_write_request_handler发送了%d数据，实际要发送%d数据！！",sendsize,isendlen);
+        ngx_log_stderr(errno, "ngx_write_request_handler发送了%d数据，实际要发送%d数据！！",sendsize,pConn->isendlen);
         //没有全部发送完毕，数据只发出去了一部分，那么发送到了哪里，剩余多少，继续记录，方便下次sendproc()时使用
         pConn->psendbuf = pConn->psendbuf + sendsize;
 		pConn->isendlen = pConn->isendlen - sendsize;	

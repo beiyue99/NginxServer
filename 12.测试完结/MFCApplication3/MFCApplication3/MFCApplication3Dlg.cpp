@@ -374,7 +374,7 @@ void CMFCApplication3Dlg::OnBnClickedButton2()
 	{
 		// 处理接收数据成功的情况
 		CString receivedData(recvBuffer);
-		AfxMessageBox(_T("接收数据成功！"));
+		//AfxMessageBox(_T("接收数据成功！"));
 		// TODO: 对接收到的数据进行进一步处理
 	}
 }
