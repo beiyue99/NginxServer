@@ -209,7 +209,7 @@ bool CLogicSocket::_HandleRegister(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER p
     int iSendLen = sizeof(STRUCT_REGISTER);  
     //a)分配要发送出去的包的内存
 
-    iSendLen = 65000; //unsigned最大也就是这个值
+    //iSendLen = 65000; //unsigned最大也就是这个值
     char *p_sendbuf = (char *)p_memory->AllocMemory(m_iLenMsgHeader+m_iLenPkgHeader+iSendLen,false);//准备发送的格式，这里是 消息头+包头+包体
     //b)填充消息头
     memcpy(p_sendbuf,pMsgHeader,m_iLenMsgHeader);                   //消息头直接拷贝到这里来

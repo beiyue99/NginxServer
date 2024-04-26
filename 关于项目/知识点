@@ -67,3 +67,7 @@
 
 	EPOLLERR | EPOLLHUP | EPOLLRDHUP
    //客户端关闭，如果服务器端挂着一个写通知事件，则这里个条件是可能成立的
+
+
+   setsockopt( listen_fd, IPPROTO_TCP, TCP_DEFER_ACCEPT, &timeout, sizeof(int) )
+   当客户端发送数据，accept才会返回

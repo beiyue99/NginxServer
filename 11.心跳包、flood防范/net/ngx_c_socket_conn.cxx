@@ -187,13 +187,11 @@ void* CSocekt::ServerRecyConnectionThread(void* threadData)
     while(1)
     {
         usleep(200 * 1000);  //单位是微妙,又因为1毫秒=1000微妙，所以 200 *1000 = 200毫秒
-
         if(pSocketObj->m_totol_recyconnection_n > 0)
         {
             currtime = time(NULL);
             err = pthread_mutex_lock(&pSocketObj->m_recyconnqueueMutex);  
             if(err != 0) ngx_log_stderr(err,"CSocekt::ServerRecyConnectionThread()中pthread_mutex_lock()失败，返回的错误码为%d!",err);
-
 lblRRTD:
             pos    = pSocketObj->m_recyconnectionList.begin();
 			posend = pSocketObj->m_recyconnectionList.end();
@@ -245,7 +243,6 @@ lblRRTD:
             break; 
         }
     }  
-    
     return (void*)0;
 }
 

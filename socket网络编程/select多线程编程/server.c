@@ -64,12 +64,6 @@ int main()
     }
 
 
-
-
-
-
-
-
     fd_set readSet;
     int maxFd;
     FD_ZERO(&readSet);

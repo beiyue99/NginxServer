@@ -17,7 +17,6 @@
 #include "ngx_c_crc32.h"       //和crc32校验算法有关 
 #include "ngx_c_slogic.h"      //和socket通讯相关
 
-//本文件用的函数声明
 static void freeresource();
 
 //和设置标题有关的全局量

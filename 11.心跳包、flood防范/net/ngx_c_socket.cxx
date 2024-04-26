@@ -86,7 +86,7 @@ bool CSocekt::Initialize_subproc()
         return false;    
     }
    
-    //第二个参数=0，表示信号量在线程之间共享，确实如此 ，如果非0，表示在进程之间共享
+    //第二个参数=0，表示信号量在线程之间共享 ，如果非0，表示在进程之间共享
     //第三个参数=0，表示信号量的初始值，为0时，调用sem_wait()就会卡在那里卡着
     if(sem_init(&m_semEventSendQueue,0,0) == -1)
     {
@@ -610,11 +610,11 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                 p_Conn->psendbuf = (char *)pPkgHeader;   
                 itmp = ntohs(pPkgHeader->pkgLen);        //包头+包体 长度 ，打包时用了htons【本机序转网络序】
                 p_Conn->isendlen = itmp;                 //要发送多少数据（包头加包体）
-                                 
-	                //开始不把socket写事件通知加入到epoll,当我需要写数据的时候，直接调用write/send发送数据；
-	                //如果返回了EAGIN【发送缓冲区满了，需要等待可写事件才能继续往缓冲区里写数据】，此时，我再把写事件通知加入到epoll，
-	                //此时，就变成了在epoll驱动下写数据，全部数据发送完毕后，再把写事件通知从epoll中干掉；
-	                //优点：数据不多的时候，可以避免epoll的写事件的增加/删除，提高了程序的执行效率；                         
+	        //开始不把socket写事件通知加入到epoll,当我需要写数据的时候，直接调用write/send发送数据；
+	        //如果返回了EAGIN【发送缓冲区满了，需要等待可写事件才能继续往缓冲区里写数据】
+            //此时，我再把写事件通知加入到epoll，
+	        //此时，就变成了在epoll驱动下写数据，全部数据发送完毕后，再把写事件通知从epoll中干掉；
+	        //优点：数据不多的时候，可以避免epoll的写事件的增加/删除，提高了程序的执行效率；                         
                 ngx_log_stderr(errno,"即将发送数据，发送数据大小为%ud。",p_Conn->isendlen);
 
                 sendsize = pSocketObj->sendproc(p_Conn,p_Conn->psendbuf,p_Conn->isendlen); //注意参数
