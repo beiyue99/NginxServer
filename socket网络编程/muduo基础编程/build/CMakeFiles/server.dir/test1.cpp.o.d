@@ -1,5 +1,5 @@
 CMakeFiles/server.dir/test1.cpp.o: \
- /mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/test1.cpp \
+ /mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/test1.cpp \
  /usr/include/stdc-predef.h /usr/include/c++/11/iostream \
  /usr/include/x86_64-linux-gnu/c++/11/bits/c++config.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/os_defines.h \
@@ -145,38 +145,9 @@ CMakeFiles/server.dir/test1.cpp.o: \
  /usr/include/c++/11/bits/locale_facets.tcc \
  /usr/include/c++/11/bits/basic_ios.tcc \
  /usr/include/c++/11/bits/ostream.tcc /usr/include/c++/11/istream \
- /usr/include/c++/11/bits/istream.tcc /usr/include/muduo/net/TcpServer.h \
- /usr/include/muduo/base/Atomic.h /usr/include/muduo/base/noncopyable.h \
- /usr/include/muduo/base/Types.h /usr/include/string.h \
- /usr/include/strings.h /usr/include/assert.h \
- /usr/include/muduo/net/TcpConnection.h \
- /usr/include/muduo/base/StringPiece.h /usr/include/muduo/net/Callbacks.h \
- /usr/include/muduo/base/Timestamp.h /usr/include/muduo/base/copyable.h \
- /usr/local/include/boost/operators.hpp /usr/include/c++/11/cstddef \
- /usr/include/c++/11/iterator /usr/include/c++/11/bits/stream_iterator.h \
- /usr/local/include/boost/config.hpp \
- /usr/local/include/boost/config/user.hpp \
- /usr/local/include/boost/config/detail/select_compiler_config.hpp \
- /usr/local/include/boost/config/compiler/gcc.hpp \
- /usr/local/include/boost/config/detail/select_stdlib_config.hpp \
- /usr/include/c++/11/version \
- /usr/local/include/boost/config/stdlib/libstdcpp3.hpp \
- /usr/include/unistd.h /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
- /usr/include/x86_64-linux-gnu/bits/environments.h \
- /usr/include/x86_64-linux-gnu/bits/confname.h \
- /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
- /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
- /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
- /usr/include/linux/close_range.h \
- /usr/local/include/boost/config/detail/select_platform_config.hpp \
- /usr/local/include/boost/config/platform/linux.hpp \
- /usr/local/include/boost/config/detail/posix_features.hpp \
- /usr/local/include/boost/config/detail/suffix.hpp \
- /usr/local/include/boost/config/helper_macros.hpp \
- /usr/local/include/boost/config/detail/cxx_composite.hpp \
- /usr/local/include/boost/detail/workaround.hpp \
- /usr/local/include/boost/config/workaround.hpp \
- /usr/local/include/boost/core/addressof.hpp \
+ /usr/include/c++/11/bits/istream.tcc /usr/include/muduo/net/EventLoop.h \
+ /usr/include/c++/11/atomic /usr/include/c++/11/bits/atomic_base.h \
+ /usr/include/c++/11/bits/atomic_lockfree_defines.h \
  /usr/include/c++/11/functional /usr/include/c++/11/tuple \
  /usr/include/c++/11/utility /usr/include/c++/11/bits/stl_relops.h \
  /usr/include/c++/11/array /usr/include/c++/11/bits/uses_allocator.h \
@@ -197,7 +168,69 @@ CMakeFiles/server.dir/test1.cpp.o: \
  /usr/include/c++/11/bits/algorithmfwd.h \
  /usr/include/c++/11/bits/stl_heap.h \
  /usr/include/c++/11/bits/stl_tempbuf.h \
- /usr/include/c++/11/bits/uniform_int_dist.h /usr/include/c++/11/memory \
+ /usr/include/c++/11/bits/uniform_int_dist.h /usr/include/boost/any.hpp \
+ /usr/include/boost/config.hpp /usr/include/boost/config/user.hpp \
+ /usr/include/boost/config/detail/select_compiler_config.hpp \
+ /usr/include/boost/config/compiler/gcc.hpp /usr/include/c++/11/cstddef \
+ /usr/include/boost/config/detail/select_stdlib_config.hpp \
+ /usr/include/c++/11/version \
+ /usr/include/boost/config/stdlib/libstdcpp3.hpp /usr/include/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
+ /usr/include/x86_64-linux-gnu/bits/environments.h \
+ /usr/include/x86_64-linux-gnu/bits/confname.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
+ /usr/include/linux/close_range.h \
+ /usr/include/boost/config/detail/select_platform_config.hpp \
+ /usr/include/boost/config/platform/linux.hpp \
+ /usr/include/boost/config/detail/posix_features.hpp \
+ /usr/include/boost/config/detail/suffix.hpp \
+ /usr/include/boost/config/helper_macros.hpp \
+ /usr/include/boost/type_index.hpp \
+ /usr/include/boost/type_index/stl_type_index.hpp \
+ /usr/include/boost/type_index/type_index_facade.hpp \
+ /usr/include/boost/container_hash/hash_fwd.hpp \
+ /usr/include/boost/config/workaround.hpp /usr/include/c++/11/cstring \
+ /usr/include/string.h /usr/include/strings.h \
+ /usr/include/boost/static_assert.hpp \
+ /usr/include/boost/detail/workaround.hpp \
+ /usr/include/boost/throw_exception.hpp \
+ /usr/include/boost/assert/source_location.hpp \
+ /usr/include/boost/current_function.hpp /usr/include/boost/cstdint.hpp \
+ /usr/include/boost/exception/exception.hpp \
+ /usr/include/boost/core/demangle.hpp /usr/include/c++/11/cxxabi.h \
+ /usr/include/x86_64-linux-gnu/c++/11/bits/cxxabi_tweaks.h \
+ /usr/include/boost/type_traits/conditional.hpp \
+ /usr/include/boost/type_traits/is_const.hpp \
+ /usr/include/boost/type_traits/integral_constant.hpp \
+ /usr/include/boost/type_traits/is_reference.hpp \
+ /usr/include/boost/type_traits/is_lvalue_reference.hpp \
+ /usr/include/boost/type_traits/is_rvalue_reference.hpp \
+ /usr/include/boost/type_traits/is_volatile.hpp \
+ /usr/include/boost/type_traits/remove_cv.hpp \
+ /usr/include/boost/type_traits/remove_reference.hpp \
+ /usr/include/boost/type_traits/decay.hpp \
+ /usr/include/boost/type_traits/is_array.hpp \
+ /usr/include/boost/type_traits/is_function.hpp \
+ /usr/include/boost/type_traits/detail/config.hpp \
+ /usr/include/boost/version.hpp \
+ /usr/include/boost/type_traits/detail/is_function_cxx_11.hpp \
+ /usr/include/boost/type_traits/remove_bounds.hpp \
+ /usr/include/boost/type_traits/remove_extent.hpp \
+ /usr/include/boost/type_traits/add_pointer.hpp \
+ /usr/include/boost/type_traits/add_reference.hpp \
+ /usr/include/boost/utility/enable_if.hpp \
+ /usr/include/boost/core/enable_if.hpp \
+ /usr/include/boost/core/addressof.hpp \
+ /usr/include/boost/type_traits/is_same.hpp \
+ /usr/include/muduo/base/Mutex.h /usr/include/muduo/base/CurrentThread.h \
+ /usr/include/muduo/base/Types.h /usr/include/assert.h \
+ /usr/include/muduo/base/noncopyable.h \
+ /usr/include/muduo/base/Timestamp.h /usr/include/muduo/base/copyable.h \
+ /usr/include/boost/operators.hpp /usr/include/c++/11/iterator \
+ /usr/include/c++/11/bits/stream_iterator.h \
+ /usr/include/muduo/net/Callbacks.h /usr/include/c++/11/memory \
  /usr/include/c++/11/bits/stl_raw_storage_iter.h \
  /usr/include/c++/11/bits/align.h /usr/include/c++/11/bit \
  /usr/include/c++/11/bits/unique_ptr.h \
@@ -206,13 +239,13 @@ CMakeFiles/server.dir/test1.cpp.o: \
  /usr/include/c++/11/bits/allocated_ptr.h \
  /usr/include/c++/11/ext/concurrence.h \
  /usr/include/c++/11/bits/shared_ptr_atomic.h \
- /usr/include/c++/11/bits/atomic_base.h \
- /usr/include/c++/11/bits/atomic_lockfree_defines.h \
  /usr/include/c++/11/backward/auto_ptr.h \
  /usr/include/c++/11/pstl/glue_memory_defs.h \
  /usr/include/c++/11/pstl/execution_defs.h \
- /usr/include/muduo/net/Buffer.h /usr/include/muduo/net/Endian.h \
- /usr/include/c++/11/algorithm \
+ /usr/include/muduo/net/TimerId.h /usr/include/muduo/net/TcpServer.h \
+ /usr/include/muduo/base/Atomic.h /usr/include/muduo/net/TcpConnection.h \
+ /usr/include/muduo/base/StringPiece.h /usr/include/muduo/net/Buffer.h \
+ /usr/include/muduo/net/Endian.h /usr/include/c++/11/algorithm \
  /usr/include/c++/11/pstl/glue_algorithm_defs.h \
  /usr/include/muduo/net/InetAddress.h /usr/include/netinet/in.h \
  /usr/include/x86_64-linux-gnu/sys/socket.h \
@@ -231,46 +264,6 @@ CMakeFiles/server.dir/test1.cpp.o: \
  /usr/include/x86_64-linux-gnu/asm/sockios.h \
  /usr/include/asm-generic/sockios.h \
  /usr/include/x86_64-linux-gnu/bits/types/struct_osockaddr.h \
- /usr/include/x86_64-linux-gnu/bits/in.h /usr/local/include/boost/any.hpp \
- /usr/local/include/boost/any/bad_any_cast.hpp \
- /usr/local/include/boost/any/fwd.hpp \
- /usr/local/include/boost/type_traits/alignment_of.hpp \
- /usr/local/include/boost/type_traits/intrinsics.hpp \
- /usr/local/include/boost/type_traits/detail/config.hpp \
- /usr/local/include/boost/version.hpp \
- /usr/local/include/boost/type_traits/integral_constant.hpp \
- /usr/local/include/boost/type_index.hpp \
- /usr/local/include/boost/type_index/stl_type_index.hpp \
- /usr/local/include/boost/type_index/type_index_facade.hpp \
- /usr/local/include/boost/container_hash/hash_fwd.hpp \
- /usr/include/c++/11/cstring /usr/local/include/boost/static_assert.hpp \
- /usr/local/include/boost/throw_exception.hpp \
- /usr/local/include/boost/exception/exception.hpp \
- /usr/local/include/boost/assert/source_location.hpp \
- /usr/local/include/boost/current_function.hpp \
- /usr/local/include/boost/cstdint.hpp \
- /usr/local/include/boost/core/demangle.hpp /usr/include/c++/11/cxxabi.h \
- /usr/include/x86_64-linux-gnu/c++/11/bits/cxxabi_tweaks.h \
- /usr/local/include/boost/type_traits/conditional.hpp \
- /usr/local/include/boost/type_traits/is_const.hpp \
- /usr/local/include/boost/type_traits/is_reference.hpp \
- /usr/local/include/boost/type_traits/is_lvalue_reference.hpp \
- /usr/local/include/boost/type_traits/is_rvalue_reference.hpp \
- /usr/local/include/boost/type_traits/is_volatile.hpp \
- /usr/local/include/boost/type_traits/remove_cv.hpp \
- /usr/local/include/boost/type_traits/remove_reference.hpp \
- /usr/local/include/boost/type_traits/decay.hpp \
- /usr/local/include/boost/type_traits/is_array.hpp \
- /usr/local/include/boost/type_traits/is_function.hpp \
- /usr/local/include/boost/type_traits/detail/is_function_cxx_11.hpp \
- /usr/local/include/boost/type_traits/remove_bounds.hpp \
- /usr/local/include/boost/type_traits/remove_extent.hpp \
- /usr/local/include/boost/type_traits/add_pointer.hpp \
- /usr/local/include/boost/type_traits/add_reference.hpp \
- /usr/local/include/boost/core/enable_if.hpp \
- /usr/local/include/boost/type_traits/is_same.hpp /usr/include/c++/11/map \
+ /usr/include/x86_64-linux-gnu/bits/in.h /usr/include/c++/11/map \
  /usr/include/c++/11/bits/stl_tree.h /usr/include/c++/11/bits/stl_map.h \
- /usr/include/c++/11/bits/stl_multimap.h \
- /usr/include/muduo/net/EventLoop.h /usr/include/c++/11/atomic \
- /usr/include/muduo/base/Mutex.h /usr/include/muduo/base/CurrentThread.h \
- /usr/include/muduo/net/TimerId.h
+ /usr/include/c++/11/bits/stl_multimap.h

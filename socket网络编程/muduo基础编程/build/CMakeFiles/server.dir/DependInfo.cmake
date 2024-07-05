@@ -8,7 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
-  "/mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/test1.cpp" "CMakeFiles/server.dir/test1.cpp.o" "gcc" "CMakeFiles/server.dir/test1.cpp.o.d"
+  "/mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/test1.cpp" "CMakeFiles/server.dir/test1.cpp.o" "gcc" "CMakeFiles/server.dir/test1.cpp.o.d"
   )
 
 # Targets to which this target links.

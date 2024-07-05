@@ -1,4 +1,4 @@
-# Install script for directory: /mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程
+# Install script for directory: /mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
@@ -50,5 +50,5 @@ endif()
 
 string(REPLACE ";" "\n" CMAKE_INSTALL_MANIFEST_CONTENT
        "${CMAKE_INSTALL_MANIFEST_FILES}")
-file(WRITE "/mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build/${CMAKE_INSTALL_MANIFEST}"
+file(WRITE "/mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build/${CMAKE_INSTALL_MANIFEST}"
      "${CMAKE_INSTALL_MANIFEST_CONTENT}")

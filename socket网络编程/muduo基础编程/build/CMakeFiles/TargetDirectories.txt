@@ -1,3 +1,3 @@
-/mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build/CMakeFiles/server.dir
-/mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build/CMakeFiles/edit_cache.dir
-/mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build/CMakeFiles/rebuild_cache.dir
+/mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build/CMakeFiles/server.dir
+/mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build/CMakeFiles/edit_cache.dir
+/mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build/CMakeFiles/rebuild_cache.dir

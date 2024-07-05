@@ -54,10 +54,10 @@ RM = /usr/bin/cmake -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = /mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程
+CMAKE_SOURCE_DIR = /mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = /mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build
+CMAKE_BINARY_DIR = /mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build
 
 #=============================================================================
 # Directory level rules for the build root directory
@@ -81,14 +81,14 @@ clean: CMakeFiles/server.dir/clean
 CMakeFiles/server.dir/all:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/depend
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/server.dir/build.make CMakeFiles/server.dir/build
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build/CMakeFiles --progress-num=1,2 "Built target server"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --progress-dir=/mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build/CMakeFiles --progress-num=1,2 "Built target server"
 .PHONY : CMakeFiles/server.dir/all
 
 # Build rule for subdir invocation for target.
 CMakeFiles/server.dir/rule: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build/CMakeFiles 2
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build/CMakeFiles 2
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 CMakeFiles/server.dir/all
-	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/d/fileswjf/MyCode/mycode/socket网络编程/muduo基础编程/build/CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start /mnt/d/fileswjf/NginxServer/socket网络编程/muduo基础编程/build/CMakeFiles 0
 .PHONY : CMakeFiles/server.dir/rule
 
 # Convenience name for target.
