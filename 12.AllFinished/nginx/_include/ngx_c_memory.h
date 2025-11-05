@@ -8,20 +8,11 @@
 //内存相关类
 class CMemory 
 {
-private:
-	CMemory() {}  //构造函数，因为要做成单例类，所以是私有的构造函数
-
-	~CMemory(){};
-
-private:
-	static CMemory *m_instance;
-	static std::mutex m_mutex;
-
 public:	
 	// 删除拷贝构造函数和赋值运算符
 	CMemory(const CMemory&) = delete;
 	CMemory& operator=(const CMemory&) = delete;
-	static CMemory* GetInstance() //单例
+	static CMemory* GetInstance() 
 	{			
 		if(m_instance == NULL)
 		{
@@ -51,6 +42,14 @@ public:
 	void *AllocMemory(int memCount,bool ifmemset);
 	void FreeMemory(void *point);
 	
+	//因为要做成单例类，所以是私有的构造函数
+private:
+	CMemory() = default;
+	~CMemory() = default;
+
+private:
+	static CMemory* m_instance;
+	static std::mutex m_mutex;
 };
 
 #endif
