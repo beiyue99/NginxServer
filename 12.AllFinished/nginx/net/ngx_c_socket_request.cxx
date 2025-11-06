@@ -155,7 +155,7 @@ ssize_t CSocekt::recvproc(lpngx_connection_t pConn,char *buff,ssize_t buflen)  /
 //拆解包头，new出收pTmpBuffer指针，指向消息头+包头+包体大小的内存，拷贝包头进来，然后收包体
 void CSocekt::ngx_wait_request_handler_proc_p1(lpngx_connection_t pConn,bool &isflood)
 {    
-    CMemory *p_memory = CMemory::GetInstance();		
+    CMemory &memory = CMemory::GetInstance();		
 
     LPCOMM_PKG_HEADER pPkgHeader;
     pPkgHeader = (LPCOMM_PKG_HEADER)pConn->dataHeadInfo; //之前初始化了头指针指向dateHeadInfo
@@ -178,7 +178,7 @@ void CSocekt::ngx_wait_request_handler_proc_p1(lpngx_connection_t pConn,bool &is
     else
     {
         //合法的包头，继续处理
-        char *pTmpBuffer  = (char *)p_memory->AllocMemory(m_iLenMsgHeader + e_pkgLen,false);
+        char *pTmpBuffer  = (char *)memory.AllocMemory(m_iLenMsgHeader + e_pkgLen,false);
         pConn->precvMemPointer = pTmpBuffer;  //内存开始指针
 
         //a)先填写消息头内容
@@ -222,8 +222,8 @@ void CSocekt::ngx_wait_request_handler_proc_plast(lpngx_connection_t pConn,bool 
     else
     {
         //对于有攻击倾向的恶人，先把他的包丢掉
-        CMemory *p_memory = CMemory::GetInstance();
-        p_memory->FreeMemory(pConn->precvMemPointer); //直接释放掉内存，根本不往消息队列入
+        CMemory &memory = CMemory::GetInstance();
+        memory.FreeMemory(pConn->precvMemPointer); //直接释放掉内存，根本不往消息队列入
     }
 
     pConn->precvMemPointer = NULL;
@@ -274,7 +274,7 @@ ssize_t CSocekt::sendproc(lpngx_connection_t c,char *buff,ssize_t size)
 void CSocekt::ngx_write_request_handler(lpngx_connection_t pConn)
 {      
     ngx_log_stderr(errno, "ngx_write_request_handler被调用！！");
-    CMemory *p_memory = CMemory::GetInstance();
+    CMemory &memory = CMemory::GetInstance();
     
     ssize_t sendsize = sendproc(pConn,pConn->psendbuf,pConn->isendlen);
 
@@ -314,7 +314,7 @@ void CSocekt::ngx_write_request_handler(lpngx_connection_t pConn)
     if(sem_post(&m_semEventSendQueue)==-1)       
         ngx_log_stderr(0,"CSocekt::ngx_write_request_handler()中sem_post(&m_semEventSendQueue)失败.");
 
-    p_memory->FreeMemory(pConn->psendMemPointer);  //释放内存
+    memory.FreeMemory(pConn->psendMemPointer);  //释放内存
     pConn->psendMemPointer = NULL;        
     --pConn->iThrowsendCount; 
     return;

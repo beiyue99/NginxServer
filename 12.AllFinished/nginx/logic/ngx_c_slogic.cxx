@@ -127,7 +127,7 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 //如果m_ifTimeOutKick开启，直接踢了这个连接。  否则检查lastPingTime与当前时间的差，决定要不要踢人
 void CLogicSocket::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_time)
 {
-    CMemory *p_memory = CMemory::GetInstance();
+    CMemory& memory = CMemory::GetInstance();
 
     if(tmpmsg->iCurrsequence == tmpmsg->pConn->iCurrsequence) //此连接没断
     {
@@ -144,11 +144,11 @@ void CLogicSocket::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_
             zdClosesocketProc(p_Conn); 
         }   
              
-        p_memory->FreeMemory(tmpmsg);//内存要释放
+        memory.FreeMemory(tmpmsg);//内存要释放
     }
     else //此连接断了
     {
-        p_memory->FreeMemory(tmpmsg);//内存要释放
+        memory.FreeMemory(tmpmsg);//内存要释放
     }
     return;
 }
@@ -156,9 +156,9 @@ void CLogicSocket::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_
 //发送没有包体的数据包给客户端
 void CLogicSocket::SendNoBodyPkgToClient(LPSTRUC_MSG_HEADER pMsgHeader,unsigned short iMsgCode)
 {
-    CMemory  *p_memory = CMemory::GetInstance();
+    CMemory& memory = CMemory::GetInstance();
 
-    char *p_sendbuf = (char *)p_memory->AllocMemory(m_iLenMsgHeader+m_iLenPkgHeader,false);
+    char *p_sendbuf = (char *)memory.AllocMemory(m_iLenMsgHeader+m_iLenPkgHeader,false);
     char *p_tmpbuf = p_sendbuf;
     
 	memcpy(p_tmpbuf,pMsgHeader,m_iLenMsgHeader);
@@ -196,21 +196,16 @@ bool CLogicSocket::_HandleRegister(lpngx_connection_t pConn,LPSTRUC_MSG_HEADER p
     p_RecvInfo->iType = ntohl(p_RecvInfo->iType);         
     p_RecvInfo->username[sizeof(p_RecvInfo->username)-1]=0;//这非常关键，防止客户端发送过来畸形包，导致服务器直接使用这个数据出现错误。 
     p_RecvInfo->password[sizeof(p_RecvInfo->password)-1]=0;//这非常关键，防止客户端发送过来畸形包，导致服务器直接使用这个数据出现错误。 
-
-
     //。。。。。。。。处理数据包逻辑
-
-
-
     //给客户端回个同样的数据包
 	LPCOMM_PKG_HEADER pPkgHeader;	
-    CMemory* p_memory = CMemory::GetInstance();
+    CMemory& memory = CMemory::GetInstance();
     CCRC32   *p_crc32 = CCRC32::GetInstance();
     int iSendLen = sizeof(STRUCT_REGISTER);  
     //a)分配要发送出去的包的内存
 
     //iSendLen = 65000; //unsigned最大也就是这个值
-    char *p_sendbuf = (char *)p_memory->AllocMemory(m_iLenMsgHeader+m_iLenPkgHeader+iSendLen,false);//准备发送的格式，这里是 消息头+包头+包体
+    char *p_sendbuf = (char *)memory.AllocMemory(m_iLenMsgHeader+m_iLenPkgHeader+iSendLen,false);//准备发送的格式，这里是 消息头+包头+包体
     //b)填充消息头
     memcpy(p_sendbuf,pMsgHeader,m_iLenMsgHeader);                   //消息头直接拷贝到这里来
 

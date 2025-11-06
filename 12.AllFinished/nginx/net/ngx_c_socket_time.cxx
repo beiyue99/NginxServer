@@ -23,13 +23,13 @@
 //make_pair(futtime,tmpMsgHeader)   new消息头放入multimap，存连接和时间
 void CSocekt::AddToTimerQueue(lpngx_connection_t pConn)
 {
-    CMemory *p_memory = CMemory::GetInstance();
+    CMemory &memory = CMemory::GetInstance();
 
     time_t futtime = time(NULL);
     futtime += m_iWaitTime;  
 
     CLock lock(&m_timequeueMutex); //互斥，因为要操作m_timeQueuemap了
-    LPSTRUC_MSG_HEADER tmpMsgHeader = (LPSTRUC_MSG_HEADER)p_memory->AllocMemory(m_iLenMsgHeader,false);
+    LPSTRUC_MSG_HEADER tmpMsgHeader = (LPSTRUC_MSG_HEADER)memory.AllocMemory(m_iLenMsgHeader,false);
     tmpMsgHeader->pConn = pConn;
     tmpMsgHeader->iCurrsequence = pConn->iCurrsequence;
     m_timerQueuemap.insert(std::make_pair(futtime,tmpMsgHeader)); //按键 自动排序 小->大
@@ -72,7 +72,7 @@ LPSTRUC_MSG_HEADER CSocekt::RemoveFirstTimer()
 //如果m_ifTimeOutKick不开启，就找一个超时事件，把他删除，然后新插入一个更新过时间的新节点
 LPSTRUC_MSG_HEADER CSocekt::GetOverTimeTimer(time_t cur_time)
 {	
-	CMemory *p_memory = CMemory::GetInstance();
+	CMemory &memory = CMemory::GetInstance();
 	LPSTRUC_MSG_HEADER ptmp;
 
 	if (m_cur_size_ == 0 || m_timerQueuemap.empty())
@@ -86,7 +86,7 @@ LPSTRUC_MSG_HEADER CSocekt::GetOverTimeTimer(time_t cur_time)
 		{
 			//因为下次超时的时间我们也依然要判断，所以还要把这个节点加回来   
 			time_t newinqueutime = cur_time+(m_iWaitTime);
-			LPSTRUC_MSG_HEADER tmpMsgHeader = (LPSTRUC_MSG_HEADER)p_memory->AllocMemory(sizeof(STRUC_MSG_HEADER),false);
+			LPSTRUC_MSG_HEADER tmpMsgHeader = (LPSTRUC_MSG_HEADER)memory.AllocMemory(sizeof(STRUC_MSG_HEADER),false);
 			tmpMsgHeader->pConn = ptmp->pConn;
 			tmpMsgHeader->iCurrsequence = ptmp->iCurrsequence;			
 			m_timerQueuemap.insert(std::make_pair(newinqueutime,tmpMsgHeader)); //自动排序 小->大			
@@ -108,7 +108,7 @@ LPSTRUC_MSG_HEADER CSocekt::GetOverTimeTimer(time_t cur_time)
 void CSocekt::DeleteFromTimerQueue(lpngx_connection_t pConn)
 {
     std::multimap<time_t, LPSTRUC_MSG_HEADER>::iterator pos,posend;
-	CMemory *p_memory = CMemory::GetInstance();
+	CMemory &memory = CMemory::GetInstance();
     CLock lock(&m_timequeueMutex);
 
 lblMTQM:
@@ -118,7 +118,7 @@ lblMTQM:
 	{
 		if(pos->second->pConn == pConn)
 		{			
-			p_memory->FreeMemory(pos->second);  //释放内存
+			memory.FreeMemory(pos->second);  //释放内存
 			m_timerQueuemap.erase(pos);
 			--m_cur_size_; //减去一个元素，必然要把尺寸减少1个;								
 			goto lblMTQM;
@@ -136,12 +136,12 @@ void CSocekt::clearAllFromTimerQueue()
 {	
 	std::multimap<time_t, LPSTRUC_MSG_HEADER>::iterator pos,posend;
 
-	CMemory *p_memory = CMemory::GetInstance();	
+	CMemory &memory = CMemory::GetInstance();	
 	pos    = m_timerQueuemap.begin();
 	posend = m_timerQueuemap.end();    
 	for(; pos != posend; ++pos)	
 	{
-		p_memory->FreeMemory(pos->second);		
+		memory.FreeMemory(pos->second);		
 		--m_cur_size_; 		
 	}
 	m_timerQueuemap.clear();
@@ -201,8 +201,8 @@ void* CSocekt::ServerTimerQueueMonitorThread(void* threadData)
 void CSocekt::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_time)
 {
 	ngx_log_stderr(0,"父类procPingTimeOutChecking函数被调用！!");
-/*	CMemory *p_memory = CMemory::GetInstance();
-	p_memory->FreeMemory(tmpmsg);  */  
+/*	CMemory &memory = CMemory::GetInstance();
+	memory.FreeMemory(tmpmsg);  */  
 }
 
 

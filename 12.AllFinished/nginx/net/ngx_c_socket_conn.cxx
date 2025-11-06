@@ -56,12 +56,12 @@ void ngx_connection_s::PutOneToFree()
     ++iCurrsequence;   
     if(precvMemPointer != NULL)//我们曾经给这个连接分配过接收数据的内存，则要释放内存
     {        
-        CMemory::GetInstance()->FreeMemory(precvMemPointer);
+        CMemory::GetInstance().FreeMemory(precvMemPointer);
         precvMemPointer = NULL;        
     }
     if(psendMemPointer != NULL) //如果发送数据的缓冲区里有内容，则要释放内存
     {
-        CMemory::GetInstance()->FreeMemory(psendMemPointer);
+        CMemory::GetInstance().FreeMemory(psendMemPointer);
         psendMemPointer = NULL;
     }
     iThrowsendCount = 0;                          
@@ -74,12 +74,12 @@ void ngx_connection_s::PutOneToFree()
 void CSocekt::initconnection()
 {
     lpngx_connection_t p_Conn;
-    CMemory *p_memory = CMemory::GetInstance();   
+    CMemory &memory = CMemory::GetInstance();   
 
     int ilenconnpool = sizeof(ngx_connection_t);    
     for(int i = 0; i < m_worker_connections; ++i)
     {
-        p_Conn = (lpngx_connection_t)p_memory->AllocMemory(ilenconnpool,true); 
+        p_Conn = (lpngx_connection_t)memory.AllocMemory(ilenconnpool,true); 
         p_Conn = new(p_Conn) ngx_connection_t();  
         p_Conn->GetOneToUse(); //初始化连接
         m_connectionList.push_back(p_Conn);     //所有链接【不管是否空闲】都放在这个list
@@ -93,14 +93,14 @@ void CSocekt::initconnection()
 void CSocekt::clearconnection()
 {
     lpngx_connection_t p_Conn;
-	CMemory *p_memory = CMemory::GetInstance();
+	CMemory &memory = CMemory::GetInstance();
 	
 	while(!m_connectionList.empty())
 	{
 		p_Conn = m_connectionList.front();
 		m_connectionList.pop_front(); 
         p_Conn->~ngx_connection_t();     //手工调用析构函数
-		p_memory->FreeMemory(p_Conn);
+		memory.FreeMemory(p_Conn);
 	}
 }
 
@@ -122,8 +122,8 @@ lpngx_connection_t CSocekt::ngx_get_connection(int isock)
     }
 
     //走到这里，表示没空闲的连接了，那就考虑重新创建一个连接
-    CMemory *p_memory = CMemory::GetInstance();
-    lpngx_connection_t p_Conn = (lpngx_connection_t)p_memory->AllocMemory(sizeof(ngx_connection_t),true);
+    CMemory &memory = CMemory::GetInstance();
+    lpngx_connection_t p_Conn = (lpngx_connection_t)memory.AllocMemory(sizeof(ngx_connection_t),true);
     p_Conn = new(p_Conn) ngx_connection_t();
     p_Conn->GetOneToUse();
     m_connectionList.push_back(p_Conn); //入到总表中来，但不能入到空闲表中来，因为凡是调这个函数的，肯定是要用这个连接的

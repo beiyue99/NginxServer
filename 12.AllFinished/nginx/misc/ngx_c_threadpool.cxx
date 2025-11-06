@@ -30,13 +30,13 @@ CThreadPool::~CThreadPool()
 void CThreadPool::clearMsgRecvQueue()
 {
 	char * sTmpMempoint;
-	CMemory *p_memory = CMemory::GetInstance();
+    CMemory& memory = CMemory::GetInstance();
 
 	while(!m_MsgRecvQueue.empty())
 	{
 		sTmpMempoint = m_MsgRecvQueue.front();		
 		m_MsgRecvQueue.pop_front(); 
-		p_memory->FreeMemory(sTmpMempoint);
+        memory.FreeMemory(sTmpMempoint);
 	}	
 }
 
@@ -86,7 +86,7 @@ void* CThreadPool::ThreadFunc(void* threadData)
     //这个是静态成员函数，是不存在this指针的；
     ThreadItem *pThread = static_cast<ThreadItem*>(threadData);
     CThreadPool *pThreadPoolObj = pThread->_pThis;
-    CMemory *p_memory = CMemory::GetInstance();	    
+    CMemory& memory = CMemory::GetInstance();
     int err;
     pthread_t tid = pthread_self(); //获取线程自身id，以方便调试打印信息等    
     while(true)
@@ -100,14 +100,12 @@ void* CThreadPool::ThreadFunc(void* threadData)
                 pThread->ifrunning = true; 
             pthread_cond_wait(&m_pthreadCond, &m_pthreadMutex);
         }
-
         //先判断线程退出这个条件
         if(m_shutdown)
         {   
             pthread_mutex_unlock(&m_pthreadMutex); //解锁互斥量
             break;                     
         }
-
         //走到这里，可以取得消息进行处理了【消息队列中必然有消息】,注意，目前还是互斥着
         char *jobbuf = pThreadPoolObj->m_MsgRecvQueue.front();     //返回第一个元素但不检查元素存在与否
         pThreadPoolObj->m_MsgRecvQueue.pop_front();                //移除第一个元素但不返回	
@@ -122,11 +120,10 @@ void* CThreadPool::ThreadFunc(void* threadData)
 
         g_socket.threadRecvProcFunc(jobbuf);       //处理消息队列中来的消息
 
-        p_memory->FreeMemory(jobbuf);              //释放消息内存 
+        memory.FreeMemory(jobbuf);              //释放消息内存 
         --pThreadPoolObj->m_iRunningThreadNum;     //原子-1【记录正在干活的线程数量减少1】
 
     } 
-
     return (void*)0;
 }
 

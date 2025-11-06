@@ -179,13 +179,13 @@ void CSocekt::Shutdown_subproc()
 void CSocekt::clearMsgSendQueue()
 {
 	char * sTmpMempoint;
-	CMemory *p_memory = CMemory::GetInstance();
+	CMemory &memory = CMemory::GetInstance();
 	
 	while(!m_MsgSendQueue.empty())
 	{
 		sTmpMempoint = m_MsgSendQueue.front();
 		m_MsgSendQueue.pop_front(); 
-		p_memory->FreeMemory(sTmpMempoint);
+		memory.FreeMemory(sTmpMempoint);
 	}	
 }
 
@@ -563,7 +563,7 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
     unsigned short      itmp;
     ssize_t             sendsize;  
 
-    CMemory *p_memory = CMemory::GetInstance();
+    CMemory &memory = CMemory::GetInstance();
     
     while(g_stopEvent == 0) //不退出
     {
@@ -598,7 +598,7 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                     pos++;
                     pSocketObj->m_MsgSendQueue.erase(pos2);
                     --pSocketObj->m_iSendMsgQueueCount; //发送消息队列容量少1		
-                    p_memory->FreeMemory(pMsgBuf);	
+                    memory.FreeMemory(pMsgBuf);	
                     continue;
                 }
 
@@ -629,7 +629,7 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                 {                    
                     if(sendsize == p_Conn->isendlen) //成功发送出去了数据，一下就发送出去这很顺利
                     {
-                        p_memory->FreeMemory(p_Conn->psendMemPointer);  //释放内存
+                        memory.FreeMemory(p_Conn->psendMemPointer);  //释放内存
                         p_Conn->psendMemPointer = NULL;
                         ngx_log_stderr(0,"CSocekt::ServerSendQueueThread()中数据发送完毕！"); 
                         printf("\n");
@@ -662,7 +662,7 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
                 else if(sendsize == 0)
                 {
                     ngx_log_stderr(errno,"CSocekt::ServerSendQueueThread()中sendproc()返回0，直接释放内存！"); 
-                    p_memory->FreeMemory(p_Conn->psendMemPointer);  //释放内存
+                    memory.FreeMemory(p_Conn->psendMemPointer);  //释放内存
                     p_Conn->psendMemPointer = NULL;
                     continue;
                 }
@@ -686,7 +686,7 @@ void* CSocekt::ServerSendQueueThread(void* threadData)
 
                 else
                 {
-                    p_memory->FreeMemory(p_Conn->psendMemPointer);  //释放内存
+                    memory.FreeMemory(p_Conn->psendMemPointer);  //释放内存
                     p_Conn->psendMemPointer = NULL;
                     continue;
                 }
