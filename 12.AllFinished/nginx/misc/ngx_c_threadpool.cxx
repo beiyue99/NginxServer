@@ -8,19 +8,11 @@
 #include "ngx_c_memory.h"
 #include "ngx_macro.h"
 
-//静态成员初始化
-pthread_mutex_t CThreadPool::m_pthreadMutex = PTHREAD_MUTEX_INITIALIZER;  
-pthread_cond_t CThreadPool::m_pthreadCond = PTHREAD_COND_INITIALIZER;   
-bool CThreadPool::m_shutdown = false;    //刚开始标记整个线程池的线程是不退出的      
-
 //构造函数
 CThreadPool::CThreadPool()
+    : m_iRunningThreadNum(0), m_iLastEmgTime(0), m_iRecvMsgQueueCount(0), m_shutdown(false)
 {
-    m_iRunningThreadNum = 0;  //正在运行的线程，开始给个0【注意这种写法：原子的对象给0也可以直接赋值，当整型变量来用】
-    m_iLastEmgTime = 0;       //上次报告线程不够用了的时间；
-    m_iRecvMsgQueueCount = 0; //收消息队列
 }
-
 //析构函数
 CThreadPool::~CThreadPool()
 {    
@@ -29,48 +21,43 @@ CThreadPool::~CThreadPool()
 
 void CThreadPool::clearMsgRecvQueue()
 {
-	char * sTmpMempoint;
-    CMemory& memory = CMemory::GetInstance();
-
 	while(!m_MsgRecvQueue.empty())
 	{
-		sTmpMempoint = m_MsgRecvQueue.front();		
 		m_MsgRecvQueue.pop_front(); 
-        memory.FreeMemory(sTmpMempoint);
 	}	
 }
 
-
-
-
 //线程池创建threadNum数量的线程，线程入口函数是ThreadFunc
-//该函数等待所有线程启动起来返回
 bool CThreadPool::Create(int threadNum)
-{    
-    ThreadItem *pNew;
-    int err;
-
-    m_iThreadNum = threadNum; //保存要创建的线程数量    
-    
-    for(int i = 0; i < m_iThreadNum; ++i)
+{
+    m_iThreadNum = threadNum; //保存要创建的线程数量
+    // 创建线程
+    for (int i = 0; i < m_iThreadNum; ++i)
     {
-        m_threadVector.push_back(pNew = new ThreadItem(this));          
-        err = pthread_create(&pNew->_Handle, NULL, ThreadFunc, pNew);     
-        if(err != 0)
+        auto pNew = std::make_shared<ThreadItem>(this);  // 使用 shared_ptr 管理线程项
+        m_threadVector.push_back(pNew);
+        // 启动线程
+        try
         {
-            ngx_log_stderr(err,"CThreadPool::Create()创建线程%d失败，返回的错误码为%d!",i,err);
+            // 捕获 self 而不是创建新的 shared_ptr
+            pNew->_Handle = std::thread([this, threadIndex = i]() {
+                ThreadFunc(threadIndex);
+                });
+        }
+        catch (const std::exception& e)
+        {
+            ngx_log_stderr(0, "CThreadPool::Create() 创建线程失败，异常: %s", e.what());
             return false;
         }
-    } 
+    }
 
-    std::vector<ThreadItem*>::iterator iter;
-lblfor:
-    for(iter = m_threadVector.begin(); iter != m_threadVector.end(); iter++)
+
+
+    for (auto it = m_threadVector.begin(); it != m_threadVector.end(); it++)
     {
-        if( (*iter)->ifrunning == false) //这个条件保证所有线程完全启动起来，以保证整个线程池中的线程正常工作；
+        if ((*it)->ifrunning == false) //这个条件保证所有线程完全启动起来，以保证整个线程池中的线程正常工作；
         {
             usleep(100 * 1000);
-            goto lblfor;
         }
     }
     return true;
@@ -78,141 +65,120 @@ lblfor:
 
 
 
-
-//线程入口函数，当用pthread_create()创建线程后，这个ThreadFunc()函数都会被立即执行；
-//被阻塞在条件变量，否则走下去调用threadRecvProcFunc处理消息
-void* CThreadPool::ThreadFunc(void* threadData)
+//线程入口函数，当用std::thread创建线程后，这个ThreadFunc()函数都会被立即执行；
+void CThreadPool::ThreadFunc(int threadIndex)
 {
-    //这个是静态成员函数，是不存在this指针的；
-    ThreadItem *pThread = static_cast<ThreadItem*>(threadData);
-    CThreadPool *pThreadPoolObj = pThread->_pThis;
-    CMemory& memory = CMemory::GetInstance();
-    int err;
-    pthread_t tid = pthread_self(); //获取线程自身id，以方便调试打印信息等    
-    while(true)
+    try
     {
-        err = pthread_mutex_lock(&m_pthreadMutex);  
-        if(err != 0) ngx_log_stderr(err,"CThreadPool::ThreadFunc()中pthread_mutex_lock()失败，返回的错误码为%d!",err);
-        //让所有线程标记为true，然后阻塞在条件变量。当接受消息队列有数据，会走下去处理消息
-        while ( (pThreadPoolObj->m_MsgRecvQueue.size() == 0) && m_shutdown == false)
+        while (true)
         {
-            if(pThread->ifrunning == false)            
-                pThread->ifrunning = true; 
-            pthread_cond_wait(&m_pthreadCond, &m_pthreadMutex);
+            std::unique_ptr<char[]> jobbuf = nullptr;  // 将 jobbuf 定义为 std::unique_ptr<char[]>
+
+            // 1. 用代码块限制锁的作用域
+            {
+                std::unique_lock<std::mutex> lock(m_pthreadMutex);
+
+                // 2. 标记线程为空闲状态
+                m_threadVector[threadIndex]->ifrunning = false;
+
+                // 3. 等待消息或退出信号
+                m_pthreadCond.wait(lock, [this]() {
+                    return !m_MsgRecvQueue.empty() || m_shutdown;
+                    });
+
+                // 4. 检查是否需要退出
+                if (m_shutdown)
+                {
+                    break;  // 退出线程
+                }
+
+                // 5. 获取消息
+                jobbuf = std::move(m_MsgRecvQueue.front());  // 使用 move 赋值
+                m_MsgRecvQueue.pop_front();
+                --m_iRecvMsgQueueCount;
+
+                // 6. 标记线程为运行状态
+                m_threadVector[threadIndex]->ifrunning = true;
+                ++m_iRunningThreadNum;
+
+            } // 锁在这里自动释放
+
+            // 7. 在锁外处理消息（允许其他线程并发工作）
+            //g_socket.threadRecvProcFunc(jobbuf);
+            g_socket.threadRecvProcFunc(jobbuf.get());  // 获取裸指针进行处理
+            // 8. 更新运行状态
+            {
+                std::unique_lock<std::mutex> lock(m_pthreadMutex);
+                --m_iRunningThreadNum;
+            }
         }
-        //先判断线程退出这个条件
-        if(m_shutdown)
-        {   
-            pthread_mutex_unlock(&m_pthreadMutex); //解锁互斥量
-            break;                     
-        }
-        //走到这里，可以取得消息进行处理了【消息队列中必然有消息】,注意，目前还是互斥着
-        char *jobbuf = pThreadPoolObj->m_MsgRecvQueue.front();     //返回第一个元素但不检查元素存在与否
-        pThreadPoolObj->m_MsgRecvQueue.pop_front();                //移除第一个元素但不返回	
-        --pThreadPoolObj->m_iRecvMsgQueueCount;                    //收消息队列数字-1
-               
-        //可以解锁互斥量了
-        err = pthread_mutex_unlock(&m_pthreadMutex); 
-        if(err != 0)  ngx_log_stderr(err,"CThreadPool::ThreadFunc()中pthread_mutex_unlock()失败，返回的错误码为%d!",err);
-
-        //能走到这里的，就是有消息可以处理，开始处理
-        ++pThreadPoolObj->m_iRunningThreadNum;    //原子+1【记录正在干活的线程数量增加1】，这比互斥量要快很多
-
-        g_socket.threadRecvProcFunc(jobbuf);       //处理消息队列中来的消息
-
-        memory.FreeMemory(jobbuf);              //释放消息内存 
-        --pThreadPoolObj->m_iRunningThreadNum;     //原子-1【记录正在干活的线程数量减少1】
-
-    } 
-    return (void*)0;
+    }
+    catch (const std::exception& e)
+    {
+        // 捕获异常，打印日志，避免程序崩溃
+        ngx_log_stderr(0, "CThreadPool::ThreadFunc 中捕获到异常: %s", e.what());
+    }
 }
 
 //停止所有线程【等待结束线程池中所有线程，该函数返回后，应该是所有线程池中线程都结束了】
-void CThreadPool::StopAll() 
+void CThreadPool::StopAll()
 {
-    if(m_shutdown == true)
+    if (m_shutdown)
     {
         return;
     }
     m_shutdown = true;
 
-    //(2)唤醒等待该条件【卡在pthread_cond_wait()的】的所有线程，一定要在改变条件状态以后再给线程发信号
-    int err = pthread_cond_broadcast(&m_pthreadCond); 
-    if(err != 0)
+    //唤醒等待条件变量的所有线程
     {
-        ngx_log_stderr(err,"CThreadPool::StopAll()中pthread_cond_broadcast()失败，返回的错误码为%d!",err);
-        return;
+        std::lock_guard<std::mutex> lock(m_pthreadMutex);
+        m_pthreadCond.notify_all();  // 唤醒所有线程
     }
 
-    //(3)等等线程，让线程真返回    
-    std::vector<ThreadItem*>::iterator iter;
-	for(iter = m_threadVector.begin(); iter != m_threadVector.end(); iter++)
+    // 等待所有线程结束
+    for (auto& pThread : m_threadVector)
     {
-        pthread_join((*iter)->_Handle, NULL); //等待一个线程终止
+        if (pThread->_Handle.joinable())
+        {
+            pThread->_Handle.join();  // 等待线程结束
+        }
     }
-
-    //流程走到这里，那么所有的线程池中的线程肯定都返回了；
-    pthread_mutex_destroy(&m_pthreadMutex);
-    pthread_cond_destroy(&m_pthreadCond);    
-
-    //(4)释放一下new出来的ThreadItem【线程池中的线程】    
-	for(iter = m_threadVector.begin(); iter != m_threadVector.end(); iter++)
-	{
-		if(*iter)
-			delete *iter;
-	}
-	m_threadVector.clear();
-
-    ngx_log_stderr(0,"CThreadPool::StopAll()成功返回，线程池中线程全部正常结束!");
-    return;    
+    // 清理资源
+    m_threadVector.clear();
+    ngx_log_stderr(0, "CThreadPool::StopAll() 线程池中的线程全部正常结束!");
 }
 
 
 
 //入消息队列，并调用Call触发线程池中线程来处理该消息，该函数被ngx_wait_request_handler_proc_plast调用
-void CThreadPool::inMsgRecvQueueAndSignal(char *buf)
+void CThreadPool::inMsgRecvQueueAndSignal(BufferPtr buf)
 {
-    //互斥
-    int err = pthread_mutex_lock(&m_pthreadMutex);     
-    if(err != 0)
     {
-        ngx_log_stderr(err,"CThreadPool::inMsgRecvQueueAndSignal()pthread_mutex_lock()失败，返回的错误码为%d!",err);
-    }
-        
-    m_MsgRecvQueue.push_back(buf);	         //入消息队列
-    ++m_iRecvMsgQueueCount;                  //收消息队列数字+1，个人认为用变量更方便一点，比 m_MsgRecvQueue.size()高效
-
-    //取消互斥
-    err = pthread_mutex_unlock(&m_pthreadMutex);   
-    if(err != 0)
-    {
-        ngx_log_stderr(err,"CThreadPool::inMsgRecvQueueAndSignal()pthread_mutex_unlock()失败，返回的错误码为%d!",err);
+        std::lock_guard<std::mutex> lock(m_pthreadMutex);  // 加锁
+        m_MsgRecvQueue.push_back(std::move(buf));                       // 入消息队列
+        ++m_iRecvMsgQueueCount;                              // 收消息队列数字+1
     }
 
-    Call();                                  
-    return;
+    Call();  // 调用线程池中的线程来处理消息
 }
 
 
-//调用pthread_cond_signal通知一个线程池中的线程下来干活
+//调用p通知一个线程池中的线程下来干活
 void CThreadPool::Call()
 {
-    int err = pthread_cond_signal(&m_pthreadCond);
-    if(err != 0 )
     {
-        ngx_log_stderr(err,"CThreadPool::Call()中pthread_cond_signal()失败，返回的错误码为%d!",err);
+        std::lock_guard<std::mutex> lock(m_pthreadMutex);
+        m_pthreadCond.notify_one();  // 唤醒一个线程
     }
 
-    
-    if(m_iThreadNum == m_iRunningThreadNum) 
-    {        
+    if (m_iThreadNum == m_iRunningThreadNum)
+    {
         time_t currtime = time(NULL);
-        if(currtime - m_iLastEmgTime > 10) //最少间隔10秒钟才报一次线程池中线程不够用的问题；
+        if (currtime - m_iLastEmgTime > 10)  // 最少间隔10秒钟才报一次线程池中线程不够用的问题；
         {
-            m_iLastEmgTime = currtime;  //更新时间
-            ngx_log_stderr(0,"CThreadPool::Call()中发现线程池中当前空闲线程数量为0，要考虑扩容线程池了!");
+            m_iLastEmgTime = currtime;  // 更新时间
+            ngx_log_stderr(0, "CThreadPool::Call() 中发现线程池中当前空闲线程数量为0，要考虑扩容线程池了!");
         }
-    } 
-    return;
+    }
 }
 

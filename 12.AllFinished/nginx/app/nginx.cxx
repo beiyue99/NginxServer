@@ -1,5 +1,4 @@
-﻿
-#include <stdio.h>
+﻿#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
@@ -34,17 +33,18 @@ CThreadPool    g_threadpool;    //线程池全局对象
 pid_t   ngx_pid;                //当前进程的pid
 pid_t   ngx_parent;             //父进程的pid
 int     ngx_process;            //进程类型，比如master,worker进程等
-int     g_stopEvent;            //标志程序退出,0不退出1，退出
+//int     g_stopEvent;            //标志程序退出,0不退出1，退出
 
 sig_atomic_t  ngx_reap;        
 
 int main(int argc, char *const *argv)
 {     
 
+
     int exitcode = 0;           //退出代码，先给0表示正常退出
     int i;                      //临时用
     
-    g_stopEvent = 0;            //标记程序是否退出，0不退出          
+    //g_stopEvent = 0;            //标记程序是否退出，0不退出          
 
     ngx_pid    = getpid();      //取得进程pid
     ngx_parent = getppid();     //取得父进程的id 

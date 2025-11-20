@@ -130,7 +130,6 @@ static void ngx_worker_process_cycle(int inum,const char *pprocname)
     ngx_setproctitle(pprocname); //设置标题   
     ngx_log_error_core(NGX_LOG_NOTICE,0,"%s %P 【worker进程】启动并开始运行......!",pprocname,ngx_pid);
 
-
     //setvbuf(stdout,NULL,_IONBF,0); //这个函数. 直接将printf缓冲区禁止， printf就直接输出了。
     for(;;)
     {
@@ -161,12 +160,12 @@ static void ngx_worker_process_init(int inum)
     //线程池代码，率先创建，至少要比和socket相关的内容优先
     CConfig *p_config = CConfig::GetInstance();
     int tmpthreadnums = p_config->GetIntDefault("ProcMsgRecvWorkThreadCount",5); //处理接收消息的线程池中线程数量
+
     if(g_threadpool.Create(tmpthreadnums) == false)  //创建线程池中线程
     {
         exit(-2);
     }
     sleep(1); //再休息1秒；
-
     //初始化锁和信号量，创建三大线程：发数据线程、回收连接线程、处理不发心跳包用户线程
     if(g_socket.Initialize_subproc() == false) //初始化子进程需要具备的一些多线程能力相关的信息
     {
