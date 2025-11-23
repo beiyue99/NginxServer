@@ -29,125 +29,132 @@ void CSocekt::ngx_read_request_handler(ngx_connection_sp pConn)
 {  
     bool isflood = false; 
 
-    ssize_t reco = recvproc(pConn,pConn->precvbuf,pConn->irecvlen); 
-    //返回-1是断开或者错误
-    if(reco <= 0)  
+    // EPOLLET 模式：循环读取直到 EAGAIN
+    while (true)
     {
-        return;
-    }
+        ssize_t reco = recvproc(pConn, pConn->precvbuf, pConn->irecvlen);
+        //返回-1是断开或者错误
+        if (reco <= 0)
+        {
+            return;
+        }
 
-    if(pConn->curStat == _PKG_HD_INIT) 
-    {        
-        if(reco == m_iLenPkgHeader)//正好收到完整包头，这里拆解包头
-        {   
-            ngx_wait_request_handler_proc_p1(pConn,isflood); 
-        }
-        else
-		{
-            pConn->curStat        = _PKG_HD_RECVING;                
-            pConn->precvbuf       = pConn->precvbuf + reco;          
-            pConn->irecvlen       = pConn->irecvlen - reco;            
-        }
-    } 
-    else if(pConn->curStat == _PKG_HD_RECVING) 
-    {
-        if(reco==pConn->irecvlen )
+        if (pConn->curStat == _PKG_HD_INIT)
         {
-            ngx_wait_request_handler_proc_p1(pConn,isflood);
-        }
-        else
-		{
-			//包头还是没收完整，继续收包头
-            pConn->precvbuf       = pConn->precvbuf + reco;              //注意收后续包的内存往后走
-            pConn->irecvlen       = pConn->irecvlen - reco;              //要收的内容当然要减少，以确保只收到完整的包头先
-        }
-    }
-    else if(pConn->curStat == _PKG_BD_INIT) 
-    {
-        if(reco == pConn->irecvlen)
-        {
-            if(m_floodAkEnable == 1) 
+            if (reco == m_iLenPkgHeader)//正好收到完整包头，这里拆解包头
             {
-                isflood = TestFlood(pConn);  //如果频繁，FloodAttackCount++，达到一定次数就踢出
+                ngx_wait_request_handler_proc_p1(pConn, isflood);
             }
-            ngx_wait_request_handler_proc_plast(pConn,isflood);
-        }
-        else
-		{
-			pConn->curStat = _PKG_BD_RECVING;					
-			pConn->precvbuf = pConn->precvbuf + reco;
-			pConn->irecvlen = pConn->irecvlen - reco;
-		}
-    }
-    else if(pConn->curStat == _PKG_BD_RECVING) 
-    {
-        if(pConn->irecvlen == reco)
-        {
-            //包体收完整了
-            if(m_floodAkEnable == 1) 
+            else
             {
-                //Flood攻击检测是否开启
-                isflood = TestFlood(pConn);
+                pConn->curStat = _PKG_HD_RECVING;
+                pConn->precvbuf = pConn->precvbuf + reco;
+                pConn->irecvlen = pConn->irecvlen - reco;
             }
-            ngx_wait_request_handler_proc_plast(pConn,isflood);
         }
-        else
+        else if (pConn->curStat == _PKG_HD_RECVING)
         {
-            //包体没收完整，继续收
-            pConn->precvbuf = pConn->precvbuf + reco;
-			pConn->irecvlen = pConn->irecvlen - reco;
+            if (reco == pConn->irecvlen)
+            {
+                ngx_wait_request_handler_proc_p1(pConn, isflood);
+            }
+            else
+            {
+                //包头还是没收完整，继续收包头
+                pConn->precvbuf = pConn->precvbuf + reco;              //注意收后续包的内存往后走
+                pConn->irecvlen = pConn->irecvlen - reco;              //要收的内容减少，以确保只收到完整的包头先
+            }
         }
-    } 
+        else if (pConn->curStat == _PKG_BD_INIT)
+        {
+            if (reco == pConn->irecvlen)
+            {
+                if (m_floodAkEnable == 1)
+                {
+                    isflood = TestFlood(pConn);  //如果频繁，FloodAttackCount++，达到一定次数就踢出
+                }
+                ngx_wait_request_handler_proc_plast(pConn, isflood);
+            }
+            else
+            {
+                pConn->curStat = _PKG_BD_RECVING;
+                pConn->precvbuf = pConn->precvbuf + reco;
+                pConn->irecvlen = pConn->irecvlen - reco;
+            }
+        }
+        else if (pConn->curStat == _PKG_BD_RECVING)
+        {
+            if (pConn->irecvlen == reco)
+            {
+                //包体收完整了
+                if (m_floodAkEnable == 1)
+                {
+                    //Flood攻击检测是否开启
+                    isflood = TestFlood(pConn);
+                }
+                ngx_wait_request_handler_proc_plast(pConn, isflood);
+            }
+            else
+            {
+                //包体没收完整，继续收
+                pConn->precvbuf = pConn->precvbuf + reco;
+                pConn->irecvlen = pConn->irecvlen - reco;
+            }
+        }
 
-    if(isflood == true)
-    {
-        ngx_log_stderr(errno,"发现客户端flood，踢掉该客户端!");
-        zdClosesocketProc(pConn);
+        if (isflood == true)
+        {
+            ngx_log_stderr(errno, "发现客户端flood，踢掉该客户端!");
+            zdClosesocketProc(pConn);
+            return;
+        }
     }
-
-    return;
 }
 
-ssize_t CSocekt::recvproc(ngx_connection_sp pConn,char *buff,ssize_t buflen)  //ssize_t是有符号整型，在32位机器上等同与int，在64位机器上等同与long int，size_t就是无符号型的ssize_t
+ssize_t CSocekt::recvproc(ngx_connection_sp pConn, char* buff, ssize_t buflen)
 {
-    ssize_t n;
-    n = recv(pConn->fd, buff, buflen, 0);
-    if(n == 0)
-    {
-        ngx_log_stderr(0,"连接被客户端正常关闭[4路挥手关闭]！");
-        zdClosesocketProc(pConn);        
-        return -1;
-    }
-    if(n < 0) //这被认为有错误发生
-    {
-        if(errno == EAGAIN || errno == EWOULDBLOCK)
-        {
-            ngx_log_stderr(errno,"CSocekt::recvproc()中errno == EAGAIN || errno == EWOULDBLOCK成立，出乎意料！");
-            return -1;
-        }
-        if(errno == EINTR)
-        {
-            ngx_log_stderr(errno,"CSocekt::recvproc()中errno == EINTR成立，出乎意料！");
-            return -1; 
-        }
+    ssize_t n = recv(pConn->fd, buff, buflen, 0);
 
-        if(errno == ECONNRESET)
-        {
-            ngx_log_stderr(errno, "CSocekt::recvproc()中errno ==ECONNRESET！");
-            //do nothing
-        }
-        else
-        {
-            ngx_log_stderr(errno,"CSocekt::recvproc()中发生错误，我打印出来看看是啥错误！");  
-        } 
-        
-        ngx_log_stderr(0,"连接被客户端非正常关闭！");
-
+    if (n == 0)
+    {
+        // 客户端关闭连接
+        ngx_log_stderr(0, "连接被客户端正常关闭[4路挥手关闭]!");
         zdClosesocketProc(pConn);
         return -1;
     }
 
-    return n; //返回收到的字节数
+    if (n < 0)
+    {
+        // ✅ EAGAIN 是正常的，表示数据读完了
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+        {
+            // 不要打印日志，这是正常情况
+            return -1;
+        }
+
+        if (errno == EINTR)
+        {
+            // 被信号中断，可以重试
+            ngx_log_stderr(errno, "recv() 被信号中断");
+            return -1;
+        }
+
+        if (errno == ECONNRESET)
+        {
+            // 连接被重置
+            ngx_log_stderr(errno, "recv() 连接被重置");
+        }
+        else
+        {
+            ngx_log_stderr(errno, "recv() 发生错误");
+        }
+
+        ngx_log_stderr(0, "连接被客户端非正常关闭!");
+        zdClosesocketProc(pConn);
+        return -1;
+    }
+
+    return n;
 }
 
 

@@ -182,13 +182,12 @@ bool CSocekt::ngx_open_listening_sockets()
             return false;
         }
 
-        // ✅ SO_REUSEPORT（多进程必须）
-        int reuseport = 1;
-        if (setsockopt(isock, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport)) == -1) {
-            ngx_log_stderr(errno, "setsockopt(SO_REUSEPORT)失败");
-            // 如果系统不支持 SO_REUSEPORT，继续（但可能有问题）
-            ngx_log_stderr(0, "警告：系统可能不支持 SO_REUSEPORT");
-        }
+        //int reuseport = 1;
+        //if (setsockopt(isock, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport)) == -1) {
+        //    ngx_log_stderr(errno, "setsockopt(SO_REUSEPORT)失败");
+        //    // 如果系统不支持 SO_REUSEPORT，继续（但可能有问题）
+        //    ngx_log_stderr(0, "警告：系统可能不支持 SO_REUSEPORT");
+        //}
 
         //设置该socket为非阻塞
         if(setnonblocking(isock) == false)
@@ -327,14 +326,32 @@ bool CSocekt::TestFlood(ngx_connection_sp pConn)
 //创建epoll，创建连接，放入连接链表。在epoll添加监听的套间字事件
 int CSocekt::ngx_epoll_init()
 {
+    // ✅ Worker 进程重新初始化连接池
+    if (ngx_process == NGX_PROCESS_WORKER)
+    {
+        // 清空从 master 继承的连接
+        {
+            std::lock_guard<std::mutex> lk(m_connectionMutex);
+            m_connectionList.clear();
+            m_freeconnectionList.clear();
+            m_free_connection_n = 0;
+            m_total_connection_n = 0;
+        }
+        // 重新创建连接池
+        initconnection();
+
+    }
+
     m_epollhandle = epoll_create(m_worker_connections);   //直接以epoll连接的最大项数为参数，肯定是>0的； 
+
     if (m_epollhandle == -1) 
     {
         ngx_log_stderr(errno,"CSocekt::ngx_epoll_init()中epoll_create()失败.");
         exit(2); 
     }
-    initconnection();
-    
+
+    //initconnection();
+    int index = 0;
 	for(auto& listenSocket : m_ListenSocketList)
     {
         ngx_connection_sp p_Conn = ngx_get_connection(listenSocket->fd);
@@ -343,22 +360,29 @@ int CSocekt::ngx_epoll_init()
             ngx_log_stderr(errno,"CSocekt::ngx_epoll_init()中ngx_get_connection()失败.");
             exit(2); 
         }
+
         p_Conn->listening = listenSocket;   //连接对象 和监听对象关联，方便通过连接对象找监听对象
         listenSocket->connection = std::weak_ptr(p_Conn);  //监听对象 和连接对象关联，方便通过监听对象找连接对象
 
         p_Conn->rhandler = &CSocekt::ngx_event_accept;
 
-        if(ngx_epoll_oper_event(
-                                listenSocket->fd,            //socekt句柄
-                                EPOLL_CTL_ADD,      //事件类型，这里是增加
-                                EPOLLIN | EPOLLRDHUP | EPOLLET,  // 添加 EPOLLET //标志，这里代表要增加的标志,EPOLLIN：可读，EPOLLRDHUP：TCP连接的远端关闭或者半关闭
-                                0,                  //对于事件类型为增加的，不需要这个参数
-                                p_Conn              //连接池中的连接 
-                                ) == -1) 
+        int ret = ngx_epoll_oper_event(
+            listenSocket->fd,
+            EPOLL_CTL_ADD,
+            EPOLLIN | EPOLLRDHUP | EPOLLET,
+            0,
+            p_Conn
+        );
+
+        if (ret == -1)
         {
-            exit(2); 
+            ngx_log_stderr(errno, "ngx_epoll_oper_event()失败! fd=%d, port=%d",
+                listenSocket->fd, listenSocket->port);
+            exit(2);
         }
-    } 
+
+        index++;
+    }
     return 1;
 }
 
@@ -374,10 +398,9 @@ int CSocekt::ngx_epoll_oper_event(
         ev.events = flag;
         pConn->events = flag;
 
-        // ✅ 连接对象需要用 weak_ptr，因为它们会被动态创建和销毁
         std::weak_ptr<ngx_connection_s>* wp = new std::weak_ptr<ngx_connection_s>(pConn);
         ev.data.ptr = wp;
-        pConn->epoll_weak_ptr = wp;  // 保存指针
+        pConn->epoll_weak_ptr = wp;
     }
     else if (eventtype == EPOLL_CTL_MOD) {
         ev.events = pConn->events;
@@ -391,120 +414,145 @@ int CSocekt::ngx_epoll_oper_event(
             ev.events = flag;
         }
         pConn->events = ev.events;
+        ev.data.ptr = pConn->epoll_weak_ptr;
 
-        // ✅ 使用现有的 weak_ptr（从 pConn 获取）
-        // 你需要在 ngx_connection_s 中保存这个指针
-        ev.data.ptr = pConn->epoll_weak_ptr;  // 需要添加这个成员
+        printf("  MOD: ev.data.ptr=%p\n", ev.data.ptr);
     }
     else if (eventtype == EPOLL_CTL_DEL) {
         ev.events = 0;
         pConn->events = 0;
-
-        // ✅ 释放 weak_ptr
-        //if (pConn->epoll_weak_ptr) {
-        //    delete static_cast<std::weak_ptr<ngx_connection_s>*>(pConn->epoll_weak_ptr);
-        //    pConn->epoll_weak_ptr = nullptr;
-        //}
         ev.data.ptr = nullptr;
     }
 
-    if (epoll_ctl(m_epollhandle, eventtype, fd, &ev) == -1) {
-        ngx_log_stderr(errno, "epoll_ctl 失败");
+    int ret = epoll_ctl(m_epollhandle, eventtype, fd, &ev);
 
-        // 如果是 ADD 失败，清理内存
+    if (ret == -1) {
+        int saved_errno = errno;
+        printf("  ❌ epoll_ctl 失败: errno=%d (%s)\n",
+            saved_errno, strerror(saved_errno));
+
         if (eventtype == EPOLL_CTL_ADD && pConn->epoll_weak_ptr) {
             delete static_cast<std::weak_ptr<ngx_connection_s>*>(pConn->epoll_weak_ptr);
             pConn->epoll_weak_ptr = nullptr;
         }
         return -1;
     }
+
     return 1;
 }
 
-
 //调用epoll_wait返回事件并处理
-int CSocekt::ngx_epoll_process_events(int timer) 
-{   
-    int events = epoll_wait(m_epollhandle,m_events,NGX_MAX_EVENTS,timer);
-    
-    if(events == -1)
+int CSocekt::ngx_epoll_process_events(int timer)
+{
+    int events = epoll_wait(m_epollhandle, m_events, NGX_MAX_EVENTS, timer);
+
+    if (events == -1)
     {
-        if(errno == EINTR) 
+        if (errno == EINTR)
         {
-            //信号所致，直接返回
-            ngx_log_error_core(NGX_LOG_INFO,errno,"CSocekt::ngx_epoll_process_events()中epoll_wait()失败!"); 
-            return 1;  //正常返回
+            ngx_log_error_core(NGX_LOG_INFO, errno, "epoll_wait()失败(EINTR)!");
+            return 1;
         }
         else
         {
-            //这被认为应该是有问题，记录日志
-            ngx_log_stderr(errno,"CSocekt::ngx_epoll_process_events()中epoll_wait()失败!");
-            return 0;  //非正常返回 
+            ngx_log_stderr(errno, "epoll_wait()失败!");
+            return 0;
         }
     }
 
-    if(events == 0) //超时，但没事件来
+    if (events == 0)
     {
-        if(timer != -1)
-        {
-            return 1;
-        }
-        ngx_log_error_core(NGX_LOG_ALERT,0,"CSocekt::ngx_epoll_process_events()中epoll_wait()没超时却没返回任何事件!"); 
-        return 0; //非正常返回 
+        if (timer != -1) return 1;
+        ngx_log_error_core(NGX_LOG_ALERT, 0, "epoll_wait()没超时却没返回事件!");
+        return 0;
     }
 
-    //走到这里，就是属于有事件收到了
-    for(int i = 0; i < events; ++i)    //遍历本次epoll_wait返回的所有事件，注意events才是返回的实际事件数量
+    // 处理事件
+    for (int i = 0; i < events; ++i)
     {
-        uint32_t revents = m_events[i].events;//取出事件类型
+        uint32_t revents = m_events[i].events;
 
-        try
-        {
-            // ✅ 获取 weak_ptr
-            std::weak_ptr<ngx_connection_s>* wp =
-                static_cast<std::weak_ptr<ngx_connection_s>*>(m_events[i].data.ptr);
+        // ✅ 打印详细的事件信息
+        printf("\n=== Worker PID=%d: 事件 #%d ===\n", getpid(), i);
+        printf("  revents=0x%08x\n", revents);
+        printf("  m_events[%d].data.ptr=%p\n", i, m_events[i].data.ptr);
+        printf("  m_events[%d].data.fd=%d\n", i, m_events[i].data.fd);
+        printf("  m_events[%d].data.u32=%u (0x%08x)\n", i, m_events[i].data.u32, m_events[i].data.u32);
 
-            if (!wp) {
-                ngx_log_stderr(0, "epoll 事件的 weak_ptr 为空");
-                continue;
-            }
+        std::weak_ptr<ngx_connection_s>* wp =
+            static_cast<std::weak_ptr<ngx_connection_s>*>(m_events[i].data.ptr);
 
-            // ✅ 尝试提升为 shared_ptr
-            ngx_connection_sp p_Conn = wp->lock();
-
-            if (!p_Conn) {
-                ngx_log_stderr(0, "连接已失效，跳过事件处理");
-                continue;
-            }
-            if (revents & EPOLLIN)  //如果是读事件
-            {
-                ngx_log_stderr(0, "收到可读事件，fd=%d", p_Conn->fd);
-                (this->*(p_Conn->rhandler))(p_Conn);
-            }
-            if (revents & EPOLLOUT)
-            {
-                if (revents & (EPOLLERR | EPOLLHUP | EPOLLRDHUP)) //客户端关闭，如果服务器端挂着一个写通知事件，则这里个条件是可能成立的
-                {
-                    ngx_log_stderr(errno, "CSocekt::ngx_epoll_process_events()中revents&EPOLLOUT成立并且 revents & (EPOLLERR|EPOLLHUP|EPOLLRDHUP)成立");
-                    //我们只有投递了 写事件，但对端断开时，程序流程才走到这里，投递了写事件意味着 iThrowsendCount标记肯定被+1了，这里我们减回
-                    --p_Conn->iThrowsendCount;
-                }
-                else
-                {
-                    (this->* (p_Conn->whandler))(p_Conn);
-                }
-            }
-        }
-        catch (const std::bad_weak_ptr& e)
-        {
-            ngx_log_stderr(0, "连接已失效，跳过事件处理");
+        // ✅ 检查指针是否有效
+        if (!wp) {
+            printf("  ❌ weak_ptr 为 nullptr\n");
             continue;
         }
-    } 
+
+        // ✅ 检查指针地址是否合理
+        uintptr_t ptr_val = (uintptr_t)wp;
+        if (ptr_val < 0x1000) {
+            printf("  ❌ weak_ptr 地址无效: %p (太小)\n", wp);
+            continue;
+        }
+
+        printf("  尝试 lock() weak_ptr=%p...\n", wp);
+
+        ngx_connection_sp p_Conn;
+        try {
+            p_Conn = wp->lock();
+        }
+        catch (const std::exception& e) {
+            printf("  ❌ lock() 抛出异常: %s\n", e.what());
+            continue;
+        }
+
+        if (!p_Conn) {
+            printf("  ❌ lock() 返回空指针\n");
+            continue;
+        }
+
+        printf("  ✅ lock() 成功, p_Conn=%p\n", p_Conn.get());
+        printf("  连接信息: fd=%d, listening=%s",
+            p_Conn->fd,
+            p_Conn->listening.lock() ? "是" : "否");
+
+        if (p_Conn->listening.lock()) {
+            std::shared_ptr<ngx_listening_s> listening_ptr = p_Conn->listening.lock();
+            printf(", port=%d", listening_ptr->port);
+        }
+
+        printf("\n");
+
+        if (revents & EPOLLIN)
+        {
+            printf("  📥 处理可读事件...\n");
+
+            if (!p_Conn->rhandler) {
+                printf("  ❌ rhandler 为 nullptr!\n");
+                continue;
+            }
+
+            (this->*(p_Conn->rhandler))(p_Conn);
+        }
+
+        if (revents & EPOLLOUT)
+        {
+            if (revents & (EPOLLERR | EPOLLHUP | EPOLLRDHUP))
+            {
+                printf("  客户端断开\n");
+                --p_Conn->iThrowsendCount;
+            }
+            else
+            {
+                if (p_Conn->whandler) {
+                    (this->*(p_Conn->whandler))(p_Conn);
+                }
+            }
+        }
+    }
+
     return 1;
 }
-
-
 
 
 
@@ -589,7 +637,6 @@ void CSocekt::ServerSendQueueLoop()
             //此时，就变成了在epoll驱动下写数据，全部数据发送完毕后，再把写事件通知从epoll中干掉；
             //优点：数据不多的时候，可以避免epoll的写事件的增加/删除，提高了程序的执行效率；                         
             ngx_log_stderr(errno, "即将发送数据，发送数据大小为%ud。", p_Conn->isendlen);
-
             ssize_t sendsize = sendproc(p_Conn, p_Conn->psendbuf, p_Conn->isendlen); //注意参数
 
             if (sendsize > 0)

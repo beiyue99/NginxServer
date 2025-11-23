@@ -59,17 +59,21 @@ void CSocekt::initconnection()
     int ilenconnpool = sizeof(ngx_connection_s);
     for(int i = 0; i < m_worker_connections; ++i)
     {
-        // 分配内存并在该内存上构造 ngx_connection_s 对象
-        auto buffer = memory.AllocBuffer(ilenconnpool, true);  // 获取原始内存块
-        auto p_Conn = new (buffer.get()) ngx_connection_s();   // 在分配的内存上构造对象
-        // 用 shared_ptr 来管理该对象
-        std::shared_ptr<ngx_connection_s> pConn(p_Conn);
-        p_Conn->GetOneToUse(); //初始化连接
+        // ❌ 错误：使用共享内存
+        //auto buffer = memory.AllocBuffer(ilenconnpool, true);  // 获取原始内存块
+        //auto p_Conn = new (buffer.get()) ngx_connection_s();   // 在分配的内存上构造对象
+        //// 用 shared_ptr 来管理该对象
+        //std::shared_ptr<ngx_connection_s> pConn(p_Conn);
+
+         // ✅ 正确：每个连接对象独立分配
+        auto pConn = std::make_shared<ngx_connection_s>();
+
+
+        pConn->GetOneToUse(); //初始化连接
         m_connectionList.push_back(pConn);     //所有链接【不管是否空闲】都放在这个list
         m_freeconnectionList.push_back(pConn); //空闲连接会放在这个list
     } 
     m_free_connection_n = m_total_connection_n = m_connectionList.size(); //开始这两个列表一样大
-    return;
 }
 
 //最终回收连接池，释放内存
@@ -109,7 +113,6 @@ ngx_connection_sp CSocekt::ngx_get_connection(int isock)
     // 初始化连接的运行态
     pConn->GetOneToUse();
     pConn->fd = isock;
-
     return pConn;
 }
 
@@ -214,5 +217,9 @@ void CSocekt::ngx_close_connection(ngx_connection_sp pConn)
         close(pConn->fd);
         pConn->fd = -1;
     }    
-    return;
+    // 释放 weak_ptr
+    if (pConn->epoll_weak_ptr) {
+        delete static_cast<std::weak_ptr<ngx_connection_s>*>(pConn->epoll_weak_ptr);
+        pConn->epoll_weak_ptr = nullptr;
+    }
 }

@@ -50,12 +50,10 @@ static  handler statusHandler[] =
 //构造函数
 CLogicSocket::CLogicSocket()
 {
-
 }
 //析构函数
 CLogicSocket::~CLogicSocket()
 {
-
 }
 
 
@@ -70,14 +68,13 @@ bool CLogicSocket::Initialize()
 //拆解数据包，通过消息码调用对应的处理函数，该函数被线程池线程入口函数ThreadFunc调用
 void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 {          
-    // 1. 把消息头从缓冲区拷贝出来，交给 unique_ptr 管理
     auto pMsgHeader = std::make_unique<STRUC_MSG_HEADER>(*reinterpret_cast<STRUC_MSG_HEADER*>(pMsgBuf));  // 拷贝构造
 
     // 2. 包头指针、包体指针等
     auto pPkgHeader = reinterpret_cast<LPCOMM_PKG_HEADER>(pMsgBuf + m_iLenMsgHeader);
     void* pPkgBody = nullptr;
     unsigned short pkglen = ntohs(pPkgHeader->pkgLen);
-    printf("数据包头加包体大小： %d\n", pkglen);
+    printf("数据包头加包体大小： %d\n", pkglen);           // 108
     if(m_iLenPkgHeader == pkglen)
     {
         //没有包体，只有包头
@@ -121,7 +118,7 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 	if(imsgCode >= AUTH_TOTAL_COMMANDS) 
     {
         ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中imsgCode=%d消息码不对!",imsgCode); 
-        return; //丢弃不理这种包【恶意包或者错误包】
+        return; 
     }
 
     if(statusHandler[imsgCode] == nullptr)
@@ -138,8 +135,6 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 
     return;	
 }
-
-
 
 //如果m_ifTimeOutKick开启，直接踢了这个连接。  否则检查lastPingTime与当前时间的差，决定要不要踢人
 void CLogicSocket::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_time)
