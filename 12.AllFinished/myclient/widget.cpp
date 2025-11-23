@@ -35,7 +35,7 @@ void Widget::on_connect_Button_clicked()
     }
     
     // 尝试连接
-    socket->connectToHost(QHostAddress::LocalHost, 9999);
+   socket->connectToHost(QHostAddress::LocalHost, 9998);
 }
 
 
@@ -178,7 +178,7 @@ void Widget::on_sendheartButton_clicked()
     std::vector<char> recvBuffer(100000, 0);  // 初始化为0
     int rec = RecvCommonData(socket, recvBuffer.data(), recvBuffer.size());
 
-    if (rec == -1) {
+    if (rec <= 0 ) {
         QMessageBox::critical(this, tr("Error"), tr("Failed to receive response"));
         return;
     }
