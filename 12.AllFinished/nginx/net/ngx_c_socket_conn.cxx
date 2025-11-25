@@ -103,6 +103,7 @@ ngx_connection_sp CSocekt::ngx_get_connection(int isock)
         }
         else
         {
+            printf("m_freeconnectionList is Empty!\n");
             // 创建新的连接对象，并记入总表
             pConn = std::make_shared<ngx_connection_s>();
             m_connectionList.push_back(pConn);

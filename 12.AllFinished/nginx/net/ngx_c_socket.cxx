@@ -174,20 +174,12 @@ bool CSocekt::ngx_open_listening_sockets()
             return false;
         }
 
-        // ✅ SO_REUSEADDR（必须）
         int reuseaddr = 1;
         if (setsockopt(isock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr)) == -1) {
             ngx_log_stderr(errno, "setsockopt(SO_REUSEADDR)失败");
             close(isock);
             return false;
         }
-
-        //int reuseport = 1;
-        //if (setsockopt(isock, SOL_SOCKET, SO_REUSEPORT, &reuseport, sizeof(reuseport)) == -1) {
-        //    ngx_log_stderr(errno, "setsockopt(SO_REUSEPORT)失败");
-        //    // 如果系统不支持 SO_REUSEPORT，继续（但可能有问题）
-        //    ngx_log_stderr(0, "警告：系统可能不支持 SO_REUSEPORT");
-        //}
 
         //设置该socket为非阻塞
         if(setnonblocking(isock) == false)
@@ -253,15 +245,11 @@ void CSocekt::ngx_close_listening_sockets()
 
 void CSocekt::msgSend(BufferPtr psendbuf)
 {
-    //CLock lock(&m_sendMessageQueueMutex);
     std::lock_guard<std::mutex> lk(m_sendMessageQueueMutex);
 
     m_MsgSendQueue.push_back(std::move(psendbuf)); // unique_ptr 进队列
     ++m_iSendMsgQueueCount;
 
-    //if (sem_post(&m_semEventSendQueue) == -1) {
-    //    ngx_log_stderr(errno, "CSocekt::msgSend()中sem_post(&m_semEventSendQueue)失败.");
-    //}
     m_sendMessageQueueCv.notify_one();
 }
 
@@ -269,11 +257,7 @@ void CSocekt::msgSend(BufferPtr psendbuf)
 //调用inRecyConnectQueue放入待回收连接队列
 void CSocekt::zdClosesocketProc(ngx_connection_sp p_Conn)
 {
-    //把指定用户tcp连接从timer表中删除
-    //if(m_ifkickTimeCount == 1)
-    //{
-        DeleteFromTimerQueue(p_Conn);
-    //}
+    DeleteFromTimerQueue(p_Conn);
 
     //关闭socket
     if(p_Conn->fd != -1)
@@ -312,7 +296,7 @@ bool CSocekt::TestFlood(ngx_connection_sp pConn)
 		pConn->FloodkickLastTime = iCurrTime;
 	}
 
-    //ngx_log_stderr(0,"pConn->FloodAttackCount=%d,m_floodKickCount=%d.",pConn->FloodAttackCount,m_floodKickCount);
+    ngx_log_stderr(0,"pConn->FloodAttackCount=%d,m_floodKickCount=%d.",pConn->FloodAttackCount,m_floodKickCount);
 
 	if(pConn->FloodAttackCount >= m_floodKickCount)
 	{
@@ -326,22 +310,6 @@ bool CSocekt::TestFlood(ngx_connection_sp pConn)
 //创建epoll，创建连接，放入连接链表。在epoll添加监听的套间字事件
 int CSocekt::ngx_epoll_init()
 {
-    // ✅ Worker 进程重新初始化连接池
-    if (ngx_process == NGX_PROCESS_WORKER)
-    {
-        // 清空从 master 继承的连接
-        {
-            std::lock_guard<std::mutex> lk(m_connectionMutex);
-            m_connectionList.clear();
-            m_freeconnectionList.clear();
-            m_free_connection_n = 0;
-            m_total_connection_n = 0;
-        }
-        // 重新创建连接池
-        initconnection();
-
-    }
-
     m_epollhandle = epoll_create(m_worker_connections);   //直接以epoll连接的最大项数为参数，肯定是>0的； 
 
     if (m_epollhandle == -1) 
@@ -350,7 +318,7 @@ int CSocekt::ngx_epoll_init()
         exit(2); 
     }
 
-    //initconnection();
+    initconnection();
     int index = 0;
 	for(auto& listenSocket : m_ListenSocketList)
     {
@@ -472,66 +440,37 @@ int CSocekt::ngx_epoll_process_events(int timer)
     {
         uint32_t revents = m_events[i].events;
 
-        // ✅ 打印详细的事件信息
-        printf("\n=== Worker PID=%d: 事件 #%d ===\n", getpid(), i);
-        printf("  revents=0x%08x\n", revents);
-        printf("  m_events[%d].data.ptr=%p\n", i, m_events[i].data.ptr);
-        printf("  m_events[%d].data.fd=%d\n", i, m_events[i].data.fd);
-        printf("  m_events[%d].data.u32=%u (0x%08x)\n", i, m_events[i].data.u32, m_events[i].data.u32);
-
         std::weak_ptr<ngx_connection_s>* wp =
             static_cast<std::weak_ptr<ngx_connection_s>*>(m_events[i].data.ptr);
 
-        // ✅ 检查指针是否有效
         if (!wp) {
-            printf("  ❌ weak_ptr 为 nullptr\n");
             continue;
         }
-
-        // ✅ 检查指针地址是否合理
-        uintptr_t ptr_val = (uintptr_t)wp;
-        if (ptr_val < 0x1000) {
-            printf("  ❌ weak_ptr 地址无效: %p (太小)\n", wp);
-            continue;
-        }
-
-        printf("  尝试 lock() weak_ptr=%p...\n", wp);
 
         ngx_connection_sp p_Conn;
         try {
             p_Conn = wp->lock();
         }
         catch (const std::exception& e) {
-            printf("  ❌ lock() 抛出异常: %s\n", e.what());
             continue;
         }
 
         if (!p_Conn) {
-            printf("  ❌ lock() 返回空指针\n");
             continue;
         }
 
-        printf("  ✅ lock() 成功, p_Conn=%p\n", p_Conn.get());
-        printf("  连接信息: fd=%d, listening=%s",
-            p_Conn->fd,
-            p_Conn->listening.lock() ? "是" : "否");
+        printf("连接信息: fd=%d\n",p_Conn->fd);
 
         if (p_Conn->listening.lock()) {
             std::shared_ptr<ngx_listening_s> listening_ptr = p_Conn->listening.lock();
             printf(", port=%d", listening_ptr->port);
         }
 
-        printf("\n");
-
         if (revents & EPOLLIN)
         {
-            printf("  📥 处理可读事件...\n");
-
             if (!p_Conn->rhandler) {
-                printf("  ❌ rhandler 为 nullptr!\n");
                 continue;
             }
-
             (this->*(p_Conn->rhandler))(p_Conn);
         }
 
@@ -550,7 +489,6 @@ int CSocekt::ngx_epoll_process_events(int timer)
             }
         }
     }
-
     return 1;
 }
 

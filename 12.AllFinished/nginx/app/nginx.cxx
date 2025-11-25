@@ -41,47 +41,40 @@ int main(int argc, char *const *argv)
 {     
 
 
-    int exitcode = 0;           //退出代码，先给0表示正常退出
-    int i;                      //临时用
+    int exitcode = 0;           
+    int i;                      
     
-    //g_stopEvent = 0;            //标记程序是否退出，0不退出          
-
-    ngx_pid    = getpid();      //取得进程pid
-    ngx_parent = getppid();     //取得父进程的id 
-    //统计argv所占的内存
+    ngx_pid    = getpid();      
+    ngx_parent = getppid();     
     g_argvneedmem = 0;
-    for(i = 0; i < argc; i++)  //argv =  ./nginx -a -b -c asdfas
+    for(i = 0; i < argc; i++)  
     {
-        g_argvneedmem += strlen(argv[i]) + 1; //+1是给\0留空间。
+        g_argvneedmem += strlen(argv[i]) + 1; 
     } 
-    //统计环境变量所占的内存。注意判断方法是environ[i]是否为空作为环境变量结束标记
     for(i = 0; environ[i]; i++) 
     {
-        g_envneedmem += strlen(environ[i]) + 1; //+1是因为末尾有\0,是占实际内存位置的，要算进来
+        g_envneedmem += strlen(environ[i]) + 1; 
     }
 
-    g_os_argc = argc;           //保存参数个数
-    g_os_argv = (char **) argv; //保存参数指针
+    g_os_argc = argc;           
+    g_os_argv = (char **) argv; 
 
-    //全局量有必要初始化的
-    ngx_log.fd = -1;                  //-1：表示日志文件尚未打开；因为后边ngx_log_stderr要用所以这里先给-1
-    ngx_process = NGX_PROCESS_MASTER; //先标记本进程是master进程
-    ngx_reap = 0;                     //标记子进程没有发生变化
+    ngx_log.fd = -1;                  
+    ngx_process = NGX_PROCESS_MASTER; 
+    ngx_reap = 0;                     
    
-    CConfig *p_config = CConfig::GetInstance(); //单例类
-    if(p_config->Load("nginx.conf") == false) //把配置文件内容载入到内存            
+    CConfig *p_config = CConfig::GetInstance(); 
+    if(p_config->Load("nginx.conf") == false)     
     {   
-        ngx_log_init();    //初始化日志
+        ngx_log_init(); 
         ngx_log_stderr(0,"配置文件[%s]载入失败，退出!","nginx.conf");
-        exitcode = 2; //标记找不到文件
+        exitcode = 2; 
         goto lblexit;
     }
     CMemory::GetInstance();	
     CCRC32::GetInstance();
         
     ngx_log_init();            
-    //日志初始化(创建/打开日志文件)，这个需要配置项，所以必须放配置文件载入的后边；   
-
 
     //信号初始化
     if(ngx_init_signals() != 0) 
