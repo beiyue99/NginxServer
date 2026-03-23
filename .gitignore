@@ -6,6 +6,8 @@
 **/Release/
 **/x64/
 
+**/*.o
+**/link_obj/
 
 **/*vcxproj*
 **/*error.log*
