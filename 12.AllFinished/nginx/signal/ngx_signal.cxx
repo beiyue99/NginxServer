@@ -89,6 +89,7 @@ static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext)
         switch (signo)
         {
         case SIGCHLD:  //一般子进程退出会收到该信号
+            printf("子进程退出！\n");
             ngx_reap = 1;  //标记子进程状态变化
             break;
 
@@ -98,7 +99,6 @@ static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext)
     }
     else if(ngx_process == NGX_PROCESS_WORKER) //worker进程，具体干活的进程，处理的信号相对比较少
     {
-        //do nothing
     }
     else
     {

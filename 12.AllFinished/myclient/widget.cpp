@@ -35,7 +35,7 @@ void Widget::on_connect_Button_clicked()
     }
     
     // 尝试连接
-   socket->connectToHost(QHostAddress::LocalHost, 9998);
+   socket->connectToHost(QHostAddress::LocalHost, 9999);
 }
 
 

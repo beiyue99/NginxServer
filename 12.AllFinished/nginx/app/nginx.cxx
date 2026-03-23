@@ -5,15 +5,15 @@
 #include <signal.h> 
 #include <errno.h>
 #include <arpa/inet.h>
-#include <sys/time.h>          //gettimeofday
-#include "ngx_macro.h"         //各种宏定义
-#include "ngx_func.h"          //各种函数声明
-#include "ngx_c_conf.h"        //和配置文件处理相关的类,名字带c_表示和类有关
-#include "ngx_c_socket.h"      //和socket通讯相关
-#include "ngx_c_memory.h"      //和内存分配释放等相关
-#include "ngx_c_threadpool.h"  //和多线程有关
-#include "ngx_c_crc32.h"       //和crc32校验算法有关 
-#include "ngx_c_slogic.h"      //和socket通讯相关
+#include <sys/time.h>         
+#include "ngx_macro.h"        
+#include "ngx_func.h"         
+#include "ngx_c_conf.h"       
+#include "ngx_c_socket.h"     
+#include "ngx_c_memory.h"     
+#include "ngx_c_threadpool.h" 
+#include "ngx_c_crc32.h"      
+#include "ngx_c_slogic.h"     
 
 static void freeresource();
 
@@ -33,7 +33,6 @@ CThreadPool    g_threadpool;    //线程池全局对象
 pid_t   ngx_pid;                //当前进程的pid
 pid_t   ngx_parent;             //父进程的pid
 int     ngx_process;            //进程类型，比如master,worker进程等
-//int     g_stopEvent;            //标志程序退出,0不退出1，退出
 
 sig_atomic_t  ngx_reap;        
 
@@ -117,7 +116,6 @@ int main(int argc, char *const *argv)
         
 
 lblexit:
-    //(5)该释放的资源要释放掉
     ngx_log_stderr(0,"程序退出!");
     freeresource(); 
     return exitcode;
@@ -127,20 +125,17 @@ lblexit:
 
 
 
-//专门在程序执行末尾释放资源的函数【一系列的main返回前的释放动作函数】
 void freeresource()
 {
-    //(1)对于因为设置可执行程序标题导致的环境变量分配的内存，我们应该释放
     if(gp_envmem)
     {
         delete []gp_envmem;
         gp_envmem = NULL;
     }
 
-    //(2)关闭日志文件
     if(ngx_log.fd != STDERR_FILENO && ngx_log.fd != -1)  
     {        
-        close(ngx_log.fd); //不用判断结果了
+        close(ngx_log.fd); 
         ngx_log.fd = -1; 
     }
 }

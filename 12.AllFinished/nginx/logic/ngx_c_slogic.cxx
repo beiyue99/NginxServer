@@ -95,12 +95,12 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 		if(calccrc != pPkgHeader->crc32) 
 		{
             ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中CRC错误，丢弃数据!");  
-			return; //crc错，直接丢弃
+			return; 
 		}
 	}
 
-    //包crc校验OK才能走到这里    	
-    unsigned short imsgCode = ntohs(pPkgHeader->msgCode); //消息代码拿出来
+    //包crc校验通过才能走到这里    	
+    unsigned short imsgCode = ntohs(pPkgHeader->msgCode); 
     // 4. 从消息头里拿连接 weak_ptr，再 lock 成 shared_ptr
     ngx_connection_wp wpConn = pMsgHeader->pConn;
     ngx_connection_sp spConn = wpConn.lock();

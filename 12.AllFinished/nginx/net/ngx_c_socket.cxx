@@ -574,7 +574,7 @@ void CSocekt::ServerSendQueueLoop()
             //此时，我再把写事件通知加入到epoll，
             //此时，就变成了在epoll驱动下写数据，全部数据发送完毕后，再把写事件通知从epoll中干掉；
             //优点：数据不多的时候，可以避免epoll的写事件的增加/删除，提高了程序的执行效率；                         
-            ngx_log_stderr(errno, "即将发送数据，发送数据大小为%ud。", p_Conn->isendlen);
+            ngx_log_stderr(0, "即将发送数据，发送数据大小为%ud。", p_Conn->isendlen);
             ssize_t sendsize = sendproc(p_Conn, p_Conn->psendbuf, p_Conn->isendlen); //注意参数
 
             if (sendsize > 0)

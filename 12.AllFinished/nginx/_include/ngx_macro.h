@@ -9,10 +9,10 @@
 #define ngx_min(val1, val2)  ((val1 > val2) ? (val2) : (val1))         
 
 //数字相关--------------------
-#define NGX_MAX_UINT32_VALUE   (uint32_t) 0xffffffff              //最大的32位无符号数：十进制是‭4294967295‬
+#define NGX_MAX_UINT32_VALUE   (uint32_t) 0xffffffff              //最大的32位无符号数
 #define NGX_INT64_LEN          (sizeof("-9223372036854775808") - 1)     
 
-#define NGX_LOG_STDERR            0    //控制台错误【stderr】：最高级别日志，日志的内容写入log参数指定的文件，同时也尝试直接将日志输出到标准错误设备比如控制台屏幕
+#define NGX_LOG_STDERR            0    //控制台错误，最高级别日志
 #define NGX_LOG_EMERG             1    //紧急 【emerg】
 #define NGX_LOG_ALERT             2    //警戒 【alert】
 #define NGX_LOG_CRIT              3    //严重 【crit】
