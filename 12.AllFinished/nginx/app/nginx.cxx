@@ -7,7 +7,8 @@
 #include <arpa/inet.h>
 #include <sys/time.h>         
 #include "ngx_macro.h"        
-#include "ngx_func.h"         
+#include "ngx_func.h"     
+#include <iostream>
 #include "ngx_c_conf.h"       
 #include "ngx_c_socket.h"     
 #include "ngx_c_memory.h"     
@@ -17,7 +18,6 @@
 
 static void freeresource();
 
-//和设置标题有关的全局量
 size_t  g_argvneedmem=0;        //保存下这些argv参数所需要的内存大小
 size_t  g_envneedmem=0;         //环境变量所占内存大小
 int     g_os_argc;              //参数个数 
@@ -38,8 +38,6 @@ sig_atomic_t  ngx_reap;
 
 int main(int argc, char *const *argv)
 {     
-
-
     int exitcode = 0;           
     int i;                      
     
@@ -58,22 +56,19 @@ int main(int argc, char *const *argv)
     g_os_argc = argc;           
     g_os_argv = (char **) argv; 
 
-    ngx_log.fd = -1;                  
     ngx_process = NGX_PROCESS_MASTER; 
     ngx_reap = 0;                     
    
     CConfig *p_config = CConfig::GetInstance(); 
     if(p_config->Load("nginx.conf") == false)     
     {   
-        ngx_log_init(); 
-        ngx_log_stderr(0,"配置文件[%s]载入失败，退出!","nginx.conf");
+        std::cout << "配置文件[" << "nginx.conf" << "]载入失败，退出!" << std::endl;
         exitcode = 2; 
         goto lblexit;
     }
     CMemory::GetInstance();	
     CCRC32::GetInstance();
         
-    ngx_log_init();            
 
     //信号初始化
     if(ngx_init_signals() != 0) 
@@ -116,7 +111,7 @@ int main(int argc, char *const *argv)
         
 
 lblexit:
-    ngx_log_stderr(0,"程序退出!");
+    std::cout << "程序退出!" << std::endl;
     freeresource(); 
     return exitcode;
 }
@@ -131,11 +126,5 @@ void freeresource()
     {
         delete []gp_envmem;
         gp_envmem = NULL;
-    }
-
-    if(ngx_log.fd != STDERR_FILENO && ngx_log.fd != -1)  
-    {        
-        close(ngx_log.fd); 
-        ngx_log.fd = -1; 
     }
 }

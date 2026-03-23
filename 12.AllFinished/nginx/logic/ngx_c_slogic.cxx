@@ -10,6 +10,7 @@
 #include <errno.h>     //errno
 #include <sys/ioctl.h> //ioctl
 #include <arpa/inet.h>
+#include <iostream>
 #include "ngx_c_conf.h"
 #include "ngx_macro.h"
 #include "ngx_global.h"
@@ -94,7 +95,7 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
 		int calccrc = CCRC32::GetInstance()->Get_CRC((unsigned char *)pPkgBody,pkglen-m_iLenPkgHeader); //计算纯包体的crc值
 		if(calccrc != pPkgHeader->crc32) 
 		{
-            ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中CRC错误，丢弃数据!");  
+            std::cout << "CLogicSocket::threadRecvProcFunc()中CRC错误，丢弃数据!" << std::endl;
 			return; 
 		}
 	}
@@ -106,24 +107,24 @@ void CLogicSocket::threadRecvProcFunc(char *pMsgBuf)
     ngx_connection_sp spConn = wpConn.lock();
     if (!spConn)
     {
-        ngx_log_stderr(0, "threadRecvProcFunc(): 连接已失效（weak_ptr 过期），丢弃数据!");
+        std::cout << "threadRecvProcFunc(): 连接已失效（weak_ptr 过期），丢弃数据!" << std::endl;
         return;
     }
     if (spConn->iCurrsequence != pMsgHeader->iCurrsequence)
     {
-        ngx_log_stderr(0, "threadRecvProcFunc(): 序号不匹配，丢弃数据!");
+        std::cout << "threadRecvProcFunc(): 序号不匹配，丢弃数据!" << std::endl;
         return;
     }
 
 	if(imsgCode >= AUTH_TOTAL_COMMANDS) 
     {
-        ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中imsgCode=%d消息码不对!",imsgCode); 
+        std::cout << "CLogicSocket::threadRecvProcFunc()中imsgCode=" << imsgCode << "消息码不对!" << std::endl;
         return; 
     }
 
     if(statusHandler[imsgCode] == nullptr)
     {
-        ngx_log_stderr(0,"CLogicSocket::threadRecvProcFunc()中imsgCode=%d消息码找不到对应的处理函数!",imsgCode);
+        std::cout << "CLogicSocket::threadRecvProcFunc()中imsgCode=" << imsgCode << "消息码找不到对应的处理函数!" << std::endl;
         return;  
     }
     (this->*statusHandler[imsgCode])(
@@ -250,7 +251,7 @@ bool CLogicSocket::_HandleRegister(ngx_connection_sp pConn,LPSTRUC_MSG_HEADER pM
 
 bool CLogicSocket::_HandleLogIn(ngx_connection_sp pConn,LPSTRUC_MSG_HEADER pMsgHeader,char *pPkgBody,unsigned short iBodyLength)
 {
-    ngx_log_stderr(0,"执行了CLogicSocket::_HandleLogIn()!");
+    std::cout << "执行了CLogicSocket::_HandleLogIn()!" << std::endl;
     return true;
 }
 
@@ -269,7 +270,6 @@ bool CLogicSocket::_HandlePing(ngx_connection_sp pConn,LPSTRUC_MSG_HEADER pMsgHe
 
     //服务器也发送 一个只有包头的数据包给客户端，作为返回的数据
     SendNoBodyPkgToClient(pMsgHeader,_CMD_PING);
-
-    ngx_log_stderr(0,"成功收到了心跳包并返回结果！");
+    std::cout << "成功收到了心跳包并返回结果！" << std::endl;
     return true;
 }

@@ -12,6 +12,7 @@
 #include <sys/ioctl.h> //ioctl
 #include <arpa/inet.h>
 #include <pthread.h>   //多线程
+#include <iostream>
 
 #include "ngx_c_conf.h"
 #include "ngx_macro.h"
@@ -104,7 +105,7 @@ void CSocekt::ngx_read_request_handler(ngx_connection_sp pConn)
 
         if (isflood == true)
         {
-            ngx_log_stderr(errno, "发现客户端flood，踢掉该客户端!");
+            std::cout << "发现客户端flood，踢掉该客户端! 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             zdClosesocketProc(pConn);
             return;
         }
@@ -118,7 +119,7 @@ ssize_t CSocekt::recvproc(ngx_connection_sp pConn, char* buff, ssize_t buflen)
     if (n == 0)
     {
         // 客户端关闭连接
-        ngx_log_stderr(0, "连接被客户端正常关闭[4路挥手关闭]!");
+        std::cout << "连接被客户端正常关闭[4路挥手关闭]!" << std::endl;
         zdClosesocketProc(pConn);
         return -1;
     }
@@ -135,21 +136,20 @@ ssize_t CSocekt::recvproc(ngx_connection_sp pConn, char* buff, ssize_t buflen)
         if (errno == EINTR)
         {
             // 被信号中断，可以重试
-            ngx_log_stderr(errno, "recv() 被信号中断");
+            std::cout << "recv() 被信号中断, 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             return -1;
         }
 
         if (errno == ECONNRESET)
         {
             // 连接被重置
-            ngx_log_stderr(errno, "recv() 连接被重置");
+            std::cout << "recv() 连接被重置, 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
         }
         else
         {
-            ngx_log_stderr(errno, "recv() 发生错误");
+            std::cout << "recv() 发生错误, 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
         }
-
-        ngx_log_stderr(0, "连接被客户端非正常关闭!");
+        std::cout << "连接被客户端非正常关闭!" << std::endl;
         zdClosesocketProc(pConn);
         return -1;
     }
@@ -241,8 +241,8 @@ ssize_t CSocekt::sendproc(ngx_connection_sp c,char *buff,ssize_t size)
 
         if(n == 0)
         {
-            ngx_log_stderr(errno, "CSocekt::sendproc()中send()返回0！");
-            return 0; //断开连接
+            std::cout << "CSocekt::sendproc()中send()返回0！ 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
+            return 0; 
         }
 
         if(errno == EAGAIN)  
@@ -252,13 +252,13 @@ ssize_t CSocekt::sendproc(ngx_connection_sp c,char *buff,ssize_t size)
 
         if(errno == EINTR) 
         {
-            //这个不算错误 
-            //参考官方的写法，打印个日志，其他啥也没干，那就是等下次for循环重新send试一次了
-            ngx_log_stderr(errno,"CSocekt::sendproc()中send()失败.");  
+            std::cout << "CSocekt::sendproc()中send()失败, 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
+            continue; // 被信号中断，重试
         }
         else
         {
-            ngx_log_stderr(errno, "CSocekt::sendproc()中send()出现其他错误！");
+            std::cout << "CSocekt::sendproc()中send()出现其他错误！ 错误码: " 
+                << errno << ",原因: " << strerror(errno) << std::endl;
             return -2;
         }
     }
@@ -266,9 +266,10 @@ ssize_t CSocekt::sendproc(ngx_connection_sp c,char *buff,ssize_t size)
 
 void CSocekt::ngx_write_request_handler(ngx_connection_sp pConn)
 {
-    ngx_log_stderr(errno, "ngx_write_request_handler被调用！！");
+    std::cout << "ngx_write_request_handler被调用！！" << std::endl;
+    
     if (!pConn || pConn->fd == -1) {
-        ngx_log_stderr(0, "无效的连接对象");
+        std::cout << "无效的连接对象" << std::endl;
         return;
     }
     // 发送本轮数据
@@ -287,7 +288,8 @@ void CSocekt::ngx_write_request_handler(ngx_connection_sp pConn)
                 pConn
             ) == -1)
             {
-                ngx_log_stderr(errno, "CSocekt::ngx_write_request_handler()中ngx_epoll_oper_event()失败。");
+                std::cout << "CSocekt::ngx_write_request_handler()中ngx_epoll_oper_event()失败, 错误码: " 
+                    << errno << ", 原因: " << strerror(errno) << std::endl;
             }
 
             // 释放并清理发送缓冲
@@ -297,17 +299,14 @@ void CSocekt::ngx_write_request_handler(ngx_connection_sp pConn)
 
             // 该连接的“投递写事件计数”减一
             --pConn->iThrowsendCount;
-
-            ngx_log_stderr(0, "CSocekt::ngx_write_request_handler()中数据发送完毕!");
+            std::cout << "CSocekt::ngx_write_request_handler()中数据发送完毕!" << std::endl;
             return;
         }
         else
         {
             // 只发出一部分，继续等 EPOLLOUT 驱动
-            ngx_log_stderr(errno,
-                "ngx_write_request_handler发送了%d数据，实际要发送%d数据！！",
-                static_cast<int>(sendsize),
-                static_cast<int>(pConn->isendlen));
+            std::cout << "ngx_write_request_handler发送了" << static_cast<int>(sendsize) << "数据，实际要发送" << 
+                static_cast<int>(pConn->isendlen) << "数据！！ 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
 
             pConn->psendbuf += sendsize;
             pConn->isendlen -= static_cast<unsigned int>(sendsize);
@@ -317,14 +316,15 @@ void CSocekt::ngx_write_request_handler(ngx_connection_sp pConn)
     else if (sendsize == -1)
     {
         // 一般是 EAGAIN：写缓冲区满。仍保持 EPOLLOUT 等下一次可写，不动缓冲。
-        ngx_log_stderr(errno, "CSocekt::ngx_write_request_handler()时sendproc()返回-1，继续等待可写事件。");
+        std::cout << "CSocekt::ngx_write_request_handler()时sendproc()返回-1，继续等待可写事件, 错误码: " 
+            << errno << ", 原因: " << strerror(errno) << std::endl;
         return;
     }
     else // sendsize == 0
     {
         // 对端关闭或其他异常情况：这时当前发送缓冲没意义了，清理掉
-        ngx_log_stderr(errno, "CSocekt::ngx_write_request_handler()中sendproc()返回0，对端可能关闭，释放发送缓冲。");
-
+        std::cout << "CSocekt::ngx_write_request_handler()中sendproc()返回0，对端可能关闭，释放发送缓冲, 错误码: " 
+            << errno << ", 原因: " << strerror(errno) << std::endl;
         pConn->psendMemPointer.reset();
         pConn->psendbuf = nullptr;
         pConn->isendlen = 0;

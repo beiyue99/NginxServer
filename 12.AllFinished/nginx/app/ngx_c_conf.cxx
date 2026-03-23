@@ -28,6 +28,15 @@ CConfig::~CConfig()
 //装载配置文件
 bool CConfig::Load(const char *pconfName) 
 {   
+    auto trimStr = [](char* s) {
+        std::string str(s);
+        // 去左空格
+        str.erase(str.begin(), std::find_if(str.begin(), str.end(), [](unsigned char c) { return !std::isspace(c); }));
+        // 去右空格
+        str.erase(std::find_if(str.rbegin(), str.rend(), [](unsigned char c) { return !std::isspace(c); }).base(), str.end());
+        strcpy(s, str.c_str());
+        };
+
     FILE *fp;
     fp = fopen(pconfName,"r");
     if(fp == NULL)
@@ -68,10 +77,8 @@ bool CConfig::Load(const char *pconfName)
             strncpy(p_confitem->ItemName,linebuf,(int)(ptmp-linebuf)); 
             strcpy(p_confitem->ItemContent,ptmp+1);                    
 
-            Rtrim(p_confitem->ItemName);
-			Ltrim(p_confitem->ItemName);
-			Rtrim(p_confitem->ItemContent);
-			Ltrim(p_confitem->ItemContent);
+            trimStr(p_confitem->ItemName);
+            trimStr(p_confitem->ItemContent);
 
             m_ConfigItemList.push_back(p_confitem);  //内存要释放，因为这里是new出来的 
         } 

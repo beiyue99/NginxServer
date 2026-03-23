@@ -7,6 +7,7 @@
 #include "ngx_c_threadpool.h"
 #include "ngx_c_memory.h"
 #include "ngx_macro.h"
+#include <iostream>
 
 //构造函数
 CThreadPool::CThreadPool()
@@ -46,7 +47,7 @@ bool CThreadPool::Create(int threadNum)
         }
         catch (const std::exception& e)
         {
-            ngx_log_stderr(0, "CThreadPool::Create() 创建线程失败，异常: %s", e.what());
+            std::cout << "CThreadPool::Create() 创建线程失败，异常: " << e.what() << std::endl;
             return false;
         }
     }
@@ -115,8 +116,7 @@ void CThreadPool::ThreadFunc(int threadIndex)
     }
     catch (const std::exception& e)
     {
-        // 捕获异常，打印日志，避免程序崩溃
-        ngx_log_stderr(0, "CThreadPool::ThreadFunc 中捕获到异常: %s", e.what());
+        std::cout << "CThreadPool::ThreadFunc 中捕获到异常: " << e.what() << std::endl;
     }
 }
 
@@ -143,9 +143,8 @@ void CThreadPool::StopAll()
             pThread->_Handle.join();  // 等待线程结束
         }
     }
-    // 清理资源
     m_threadVector.clear();
-    ngx_log_stderr(0, "CThreadPool::StopAll() 线程池中的线程全部正常结束!");
+    std::cout << "CThreadPool::StopAll() 线程池中的线程全部正常结束!" << std::endl;
 }
 
 
@@ -170,14 +169,14 @@ void CThreadPool::Call()
         std::lock_guard<std::mutex> lock(m_pthreadMutex);
         m_pthreadCond.notify_one();  // 唤醒一个线程
     }
-
+     
     if (m_iThreadNum == m_iRunningThreadNum)
     {
         time_t currtime = time(NULL);
         if (currtime - m_iLastEmgTime > 10)  // 最少间隔10秒钟才报一次线程池中线程不够用的问题；
         {
             m_iLastEmgTime = currtime;  // 更新时间
-            ngx_log_stderr(0, "CThreadPool::Call() 中发现线程池中当前空闲线程数量为0，要考虑扩容线程池了!");
+            std::cout << "CThreadPool::Call() 中发现线程池中当前空闲线程数量为0，要考虑扩容线程池了!" << std::endl;
         }
     }
 }

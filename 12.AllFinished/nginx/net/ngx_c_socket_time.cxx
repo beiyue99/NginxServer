@@ -11,6 +11,7 @@
 #include <errno.h>     //errno
 #include <sys/ioctl.h> //ioctl
 #include <arpa/inet.h>
+#include <iostream>
 
 #include "ngx_c_conf.h"
 #include "ngx_macro.h"
@@ -201,13 +202,11 @@ void CSocekt::ServerTimerQueueMonitorLoop()
     } 
 }
 
-
+ 
 //心跳包检测时间到，该去检测心跳包是否超时的事宜，子类应该重新事先该函数以实现具体的判断动作
 void CSocekt::procPingTimeOutChecking(LPSTRUC_MSG_HEADER tmpmsg,time_t cur_time)
 {
-	ngx_log_stderr(0,"父类procPingTimeOutChecking函数被调用！!");
-/*	CMemory &memory = CMemory::GetInstance();
-	memory.FreeMemory(tmpmsg);  */  
+	std::cout << "父类procPingTimeOutChecking函数被调用！!" << std::endl;
 }
 
 

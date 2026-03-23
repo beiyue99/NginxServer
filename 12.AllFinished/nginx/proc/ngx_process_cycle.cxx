@@ -6,6 +6,7 @@
 #include <signal.h>   //信号相关头文件 
 #include <errno.h>    //errno
 #include <unistd.h>
+#include <iostream>
 
 #include "ngx_func.h"
 #include "ngx_macro.h"
@@ -46,7 +47,8 @@ void ngx_master_process_cycle()
     
     if (sigprocmask(SIG_BLOCK, &set, NULL) == -1) 
     {        
-        ngx_log_error_core(NGX_LOG_ALERT,errno,"ngx_master_process_cycle()中sigprocmask()失败!");
+        std::cout << "ngx_master_process_cycle()中sigprocmask()失败! 错误码: "
+            << errno << ", 原因: " << strerror(errno) << std::endl;
     }
 
     size_t size;
@@ -63,7 +65,7 @@ void ngx_master_process_cycle()
             strcat(title,g_os_argv[i]);
         }//end for
         ngx_setproctitle(title); //设置标题
-        ngx_log_error_core(NGX_LOG_NOTICE,0,"%s %P 【master进程】启动并开始运行......!",title,ngx_pid); 
+        std::cout << title << " " << ngx_pid << " 【master进程】启动并开始运行......!" << std::endl;
     }    
     //从配置文件中读取要创建的worker进程数量
     CConfig *p_config = CConfig::GetInstance(); //单例类
@@ -102,7 +104,7 @@ static int ngx_spawn_process(int inum,const char *pprocname)
     switch (pid)  //pid判断父子进程，分支处理
     {  
     case -1: //产生子进程失败
-        ngx_log_error_core(NGX_LOG_ALERT,errno,"ngx_spawn_process()fork()产生子进程num=%d,procname=\"%s\"失败!",inum,pprocname);
+        std::cout << "ngx_spawn_process()fork()产生子进程num=" << inum << ", procname=\"" << pprocname << "\"失败! 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
         return -1;
 
     case 0:  //子进程分支
@@ -128,8 +130,7 @@ static void ngx_worker_process_cycle(int inum,const char *pprocname)
 
     ngx_worker_process_init(inum);
     ngx_setproctitle(pprocname); //设置标题   
-    ngx_log_error_core(NGX_LOG_NOTICE,0,"%s %P 【worker进程】启动并开始运行......!",pprocname,ngx_pid);
-
+    std::cout << pprocname << " " << ngx_pid << " 【worker进程】启动并开始运行......!" << std::endl;
     //setvbuf(stdout,NULL,_IONBF,0); //这个函数. 直接将printf缓冲区禁止， printf就直接输出了。
     for(;;)
     {
@@ -154,7 +155,8 @@ static void ngx_worker_process_init(int inum)
     sigemptyset(&set);  //清空信号集
     if (sigprocmask(SIG_SETMASK, &set, NULL) == -1) 
     {
-        ngx_log_error_core(NGX_LOG_ALERT,errno,"ngx_worker_process_init()中sigprocmask()失败!");
+        std::cout << "ngx_worker_process_init()中sigprocmask()失败! 错误码: " 
+            << errno << ", 原因: " << strerror(errno) << std::endl;
     }
 
     //线程池代码，率先创建，至少要比和socket相关的内容优先

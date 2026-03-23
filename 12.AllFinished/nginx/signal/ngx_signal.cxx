@@ -5,6 +5,7 @@
 #include <signal.h>   
 #include <errno.h>     
 #include <sys/wait.h>  
+#include <iostream>
 
 #include "ngx_global.h"
 #include "ngx_macro.h"
@@ -58,11 +59,12 @@ int ngx_init_signals()
         sigemptyset(&sa.sa_mask);  
         if (sigaction(sig->signo, &sa, NULL) == -1) 
         {   
-            ngx_log_error_core(NGX_LOG_EMERG,errno,"sigaction(%s) failed",sig->signame); //显示到日志文件中去的 
-            return -1; //有失败就直接返回
+            std::cout << "sigaction(" << sig->signame << ") failed, 错误码: " 
+                << errno << ", 原因: " << strerror(errno) << std::endl;
+            return -1; 
         }	
-    } //end for
-    return 0; //成功    
+    } 
+    return 0; 
 }
 
 //信号处理函数
@@ -104,14 +106,13 @@ static void ngx_signal_handler(int signo, siginfo_t *siginfo, void *ucontext)
     {
     } 
 
-    //这里记录一些日志信息
     if(siginfo && siginfo->si_pid)  //si_pid = sending process ID【发送该信号的进程id】
     {
-        ngx_log_error_core(NGX_LOG_NOTICE,0,"signal %d (%s) received from %P%s", signo, sig->signame, siginfo->si_pid, action); 
+        std::cout << "signal " << signo << " (" << sig->signame << ") received from " << siginfo->si_pid << action << std::endl;
     }
     else
     {
-        ngx_log_error_core(NGX_LOG_NOTICE,0,"signal %d (%s) received %s",signo, sig->signame, action);
+        std::cout << "signal " << signo << " (" << sig->signame << ") received " << action << std::endl;
     }
 
 
@@ -155,20 +156,20 @@ static void ngx_process_get_status(void)
 
             if (err == ECHILD)         //没有子进程
             {
-                ngx_log_error_core(NGX_LOG_INFO,err,"waitpid() failed!");
+                std::cout << "waitpid() failed! 错误码: " << err << ", 原因: " << strerror(err) << std::endl;
                 return;
             }
-            ngx_log_error_core(NGX_LOG_ALERT,err,"waitpid() failed!");
+            std::cout << "waitpid() failed! 错误码: " << err << ", 原因: " << strerror(err) << std::endl;
             return;
         }  
         one = 1;  //标记waitpid()返回了正常的返回值
         if(WTERMSIG(status))  //获取使子进程终止的信号编号
         {
-            ngx_log_error_core(NGX_LOG_ALERT,0,"pid = %P exited on signal %d!",pid,WTERMSIG(status)); //获取使子进程终止的信号编号
+            std::cout << "pid = " << pid << " exited on signal " << WTERMSIG(status) << "!" << std::endl;
         }
         else
         {
-            ngx_log_error_core(NGX_LOG_NOTICE,0,"pid = %P exited with code %d!",pid,WEXITSTATUS(status)); //WEXITSTATUS()获取子进程传递给exit或者_exit参数的低八位
+            std::cout << "pid = " << pid << " exited with code " << WEXITSTATUS(status) << "!" << std::endl;
         }
     }
     return;

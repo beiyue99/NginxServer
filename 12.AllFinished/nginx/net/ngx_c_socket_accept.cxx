@@ -11,6 +11,7 @@
 #include <errno.h>     //errno
 #include <sys/ioctl.h> //ioctl
 #include <arpa/inet.h>
+#include <iostream>
 
 #include "ngx_c_conf.h"
 #include "ngx_macro.h"
@@ -63,8 +64,8 @@ void CSocekt::ngx_event_accept(ngx_connection_sp oldc)
             else if (err == EMFILE || err == ENFILE)
                 level = NGX_LOG_CRIT;
 
-            ngx_log_error_core(level, err,
-                "CSocekt::ngx_event_accept()中accept4()失败!");
+            std::cout << "CSocekt::ngx_event_accept()中accept4()失败! 错误码: " 
+                << errno << ", 原因: " << strerror(errno) << std::endl;
 
             if (use_accept4 && err == ENOSYS)
             {
@@ -76,7 +77,8 @@ void CSocekt::ngx_event_accept(ngx_connection_sp oldc)
 
         if (m_onlineUserCount >= m_worker_connections)
         {
-            ngx_log_stderr(0,"超出系统允许的最大连入用户数(最大允许连入数%d)，关闭连入请求(%d)。", m_worker_connections, s);
+            std::cout << "超出系统允许的最大连入用户数(最大允许连入数: " << 
+                m_worker_connections << ")，关闭连入请求(" << s << ")。" << std::endl;
             close(s);
             continue;   // ✅ 尝试继续 accept 其它连接
         }

@@ -11,6 +11,7 @@
 #include <errno.h>     //errno
 #include <sys/ioctl.h> //ioctl
 #include <arpa/inet.h>
+#include <iostream>
 
 #include "ngx_c_conf.h"
 #include "ngx_macro.h"
@@ -186,7 +187,7 @@ void CSocekt::ServerRecyConnectionLoop()
                 }
                 if(p_Conn->iThrowsendCount > 0)
                 {
-                    ngx_log_stderr(0,"CSocekt::ServerRecyConnectionThread()中到释放时间却发现p_Conn.iThrowsendCount!=0，这个不该发生");
+                    std::cout << "CSocekt::ServerRecyConnectionThread()中到释放时间却发现iThrowsendCount!=0" << std::endl;
                 }
 
                 it = m_recyconnectionList.erase(it);

@@ -11,6 +11,7 @@
 #include <errno.h>     //errno
 #include <sys/ioctl.h> //ioctl
 #include <arpa/inet.h>
+#include <iostream>
 
 #include "ngx_c_conf.h"
 #include "ngx_macro.h"
@@ -99,7 +100,7 @@ CSocekt::~CSocekt()
         m_ListenSocketList.clear();
     }
     catch (const std::exception& e) {
-        ngx_log_stderr(0, "Exception caught in CSocekt destructor: %s", e.what());
+        std::cout << "Exception caught in CSocekt destructor: %s " << e.what();
     }
 }
 
@@ -170,13 +171,13 @@ bool CSocekt::ngx_open_listening_sockets()
         isock = socket(AF_INET,SOCK_STREAM,0); //系统函数，成功返回非负描述符，出错返回-1
         if(isock == -1)
         {
-            ngx_log_stderr(errno,"CSocekt::Initialize()中socket()失败,i=%d.",i);
+            std::cout << "CSocekt::Initialize()中socket()失败, i=" << i << ", 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             return false;
         }
 
         int reuseaddr = 1;
         if (setsockopt(isock, SOL_SOCKET, SO_REUSEADDR, &reuseaddr, sizeof(reuseaddr)) == -1) {
-            ngx_log_stderr(errno, "setsockopt(SO_REUSEADDR)失败");
+            std::cout << "setsockopt(SO_REUSEADDR)失败, 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             close(isock);
             return false;
         }
@@ -184,7 +185,7 @@ bool CSocekt::ngx_open_listening_sockets()
         //设置该socket为非阻塞
         if(setnonblocking(isock) == false)
         {                
-            ngx_log_stderr(errno,"CSocekt::Initialize()中setnonblocking()失败,i=%d.",i);
+            std::cout << "CSocekt::Initialize()中setnonblocking()失败, i=" << i << ", 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             close(isock);
             return false;
         }
@@ -198,7 +199,7 @@ bool CSocekt::ngx_open_listening_sockets()
         //绑定服务器地址结构体
         if(bind(isock, (struct sockaddr*)&serv_addr, sizeof(serv_addr)) == -1)
         {
-            ngx_log_stderr(errno,"CSocekt::Initialize()中bind()失败,i=%d.",i);
+            std::cout << "CSocekt::Initialize()中bind()失败, i=" << i << ", 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             close(isock);
             return false;
         }
@@ -206,7 +207,7 @@ bool CSocekt::ngx_open_listening_sockets()
         //开始监听
         if(listen(isock,NGX_LISTEN_BACKLOG) == -1)
         {
-            ngx_log_stderr(errno,"CSocekt::Initialize()中listen()失败,i=%d.",i);
+            std::cout << "CSocekt::Initialize()中listen()失败, i=" << i << ", 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             close(isock);
             return false;
         }
@@ -214,7 +215,8 @@ bool CSocekt::ngx_open_listening_sockets()
         ngx_listening_sp p_listensocketitem = std::make_shared<ngx_listening_s>();
         p_listensocketitem->port = iport;                          //记录下所监听的端口号
         p_listensocketitem->fd   = isock;                          //套接字木柄保存下来   
-        ngx_log_error_core(NGX_LOG_INFO,0,"监听%d端口成功!",iport); //显示一些信息到日志中
+        std::cout << "监听端口成功!,port=" << iport << std::endl;
+        
         m_ListenSocketList.push_back(p_listensocketitem);          //加入到队列中
     }   
     if(m_ListenSocketList.size() <= 0)  
@@ -237,7 +239,7 @@ void CSocekt::ngx_close_listening_sockets()
     for(int i = 0; i < m_ListenPortCount; i++) //要关闭这么多个监听端口
     {  
         close(m_ListenSocketList[i]->fd);
-        ngx_log_error_core(NGX_LOG_INFO,0,"关闭监听端口%d!",m_ListenSocketList[i]->port); //显示一些信息到日志中
+        std::cout << "关闭监听端口" << m_ListenSocketList[i]->port << std::endl;
     }
     return;
 }
@@ -296,12 +298,10 @@ bool CSocekt::TestFlood(ngx_connection_sp pConn)
 		pConn->FloodkickLastTime = iCurrTime;
 	}
 
-    ngx_log_stderr(0,"pConn->FloodAttackCount=%d,m_floodKickCount=%d.",pConn->FloodAttackCount,m_floodKickCount);
-
+    std::cout << "pConn->FloodAttackCount=" << pConn->FloodAttackCount << "m_floodKickCount=" << m_floodKickCount << std::endl;
 	if(pConn->FloodAttackCount >= m_floodKickCount)
 	{
-		//可以踢此人的标志
-		reco = true;
+		reco = true;   //可以踢此人的标志
 	}
 	return reco;
 }
@@ -314,7 +314,7 @@ int CSocekt::ngx_epoll_init()
 
     if (m_epollhandle == -1) 
     {
-        ngx_log_stderr(errno,"CSocekt::ngx_epoll_init()中epoll_create()失败.");
+        std::cout << "CSocekt::ngx_epoll_init()中epoll_create()失败, 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
         exit(2); 
     }
 
@@ -323,10 +323,10 @@ int CSocekt::ngx_epoll_init()
 	for(auto& listenSocket : m_ListenSocketList)
     {
         ngx_connection_sp p_Conn = ngx_get_connection(listenSocket->fd);
-        if (p_Conn == NULL)
+        if (p_Conn == nullptr)
         {
-            ngx_log_stderr(errno,"CSocekt::ngx_epoll_init()中ngx_get_connection()失败.");
-            exit(2); 
+            std::cout << "CSocekt::ngx_epoll_init()中ngx_get_connection()失败, 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
+            exit(1); 
         }
 
         p_Conn->listening = listenSocket;   //连接对象 和监听对象关联，方便通过连接对象找监听对象
@@ -344,9 +344,8 @@ int CSocekt::ngx_epoll_init()
 
         if (ret == -1)
         {
-            ngx_log_stderr(errno, "ngx_epoll_oper_event()失败! fd=%d, port=%d",
-                listenSocket->fd, listenSocket->port);
-            exit(2);
+            std::cout << "ngx_epoll_oper_event()失败! fd=" << listenSocket->fd << ",port=" << listenSocket->port << ", 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
+            exit(1);
         }
 
         index++;
@@ -384,7 +383,7 @@ int CSocekt::ngx_epoll_oper_event(
         pConn->events = ev.events;
         ev.data.ptr = pConn->epoll_weak_ptr;
 
-        printf("  MOD: ev.data.ptr=%p\n", ev.data.ptr);
+        printf("MOD: ev.data.ptr=%p\n", ev.data.ptr);
     }
     else if (eventtype == EPOLL_CTL_DEL) {
         ev.events = 0;
@@ -396,7 +395,7 @@ int CSocekt::ngx_epoll_oper_event(
 
     if (ret == -1) {
         int saved_errno = errno;
-        printf("  ❌ epoll_ctl 失败: errno=%d (%s)\n",
+        printf("epoll_ctl 失败: errno=%d (%s)\n",
             saved_errno, strerror(saved_errno));
 
         if (eventtype == EPOLL_CTL_ADD && pConn->epoll_weak_ptr) {
@@ -418,12 +417,12 @@ int CSocekt::ngx_epoll_process_events(int timer)
     {
         if (errno == EINTR)
         {
-            ngx_log_error_core(NGX_LOG_INFO, errno, "epoll_wait()失败(EINTR)!");
+            std::cout << "epoll_wait()失败(EINTR)! 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             return 1;
         }
         else
         {
-            ngx_log_stderr(errno, "epoll_wait()失败!");
+            std::cout << "epoll_wait()失败! 错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
             return 0;
         }
     }
@@ -431,7 +430,7 @@ int CSocekt::ngx_epoll_process_events(int timer)
     if (events == 0)
     {
         if (timer != -1) return 1;
-        ngx_log_error_core(NGX_LOG_ALERT, 0, "epoll_wait()没超时却没返回事件!");
+        std::cout << "epoll_wait()没超时却没返回事件!" << std::endl;
         return 0;
     }
 
@@ -574,7 +573,7 @@ void CSocekt::ServerSendQueueLoop()
             //此时，我再把写事件通知加入到epoll，
             //此时，就变成了在epoll驱动下写数据，全部数据发送完毕后，再把写事件通知从epoll中干掉；
             //优点：数据不多的时候，可以避免epoll的写事件的增加/删除，提高了程序的执行效率；                         
-            ngx_log_stderr(0, "即将发送数据，发送数据大小为%ud。", p_Conn->isendlen);
+            std::cout << "即将发送数据，发送数据大小为: " << p_Conn->isendlen << std::endl;
             ssize_t sendsize = sendproc(p_Conn, p_Conn->psendbuf, p_Conn->isendlen); //注意参数
 
             if (sendsize > 0)
@@ -582,7 +581,7 @@ void CSocekt::ServerSendQueueLoop()
                 if (sendsize == p_Conn->isendlen) //成功发送出去了数据，一下就发送出去这很顺利
                 {
                     p_Conn->psendMemPointer.reset(); // unique_ptr 释放内存并置空
-                    ngx_log_stderr(0, "CSocekt::ServerSendQueueThread()中数据发送完毕！");
+                    std::cout << "CSocekt::ServerSendQueueThread()中数据发送完毕！" << std::endl;
                     printf("\n");
                     printf("\n");
                     printf("\n");
@@ -593,8 +592,8 @@ void CSocekt::ServerSendQueueLoop()
                     p_Conn->isendlen = p_Conn->isendlen - sendsize;
                     ++p_Conn->iThrowsendCount;             //标记发送缓冲区满了，需要通过epoll事件来驱动消息的继续发送
                     ngx_epoll_oper_event(p_Conn->fd, EPOLL_CTL_MOD, EPOLLOUT, 0, p_Conn);
-                    ngx_log_stderr(errno, "CSocekt::ServerSendQueueThread()中数据没发送完毕【发送缓冲区满】，要发送%d，实际发送了%d!",
-                        p_Conn->isendlen + sendsize, sendsize);
+                    std::cout << "CSocekt::ServerSendQueueThread()中数据没发送完毕【发送缓冲区满】，要发送: "
+                        << p_Conn->isendlen + sendsize << ", 实际发送了: "<< sendsize << ",错误码: " << errno << ", 原因: " << strerror(errno) << std::endl;
                 }
             }
             else
@@ -606,7 +605,8 @@ void CSocekt::ServerSendQueueLoop()
                 }
                 else
                 {
-                    ngx_log_stderr(errno, "CSocekt::ServerSendQueueThread()中sendproc()返回0，直接释放内存！(对方关闭连接)");
+                    std::cout << "CSocekt::ServerSendQueueThread()中sendproc()返回0，直接释放内存！(对方关闭连接), 错误码: " 
+                        << errno << ", 原因: " << strerror(errno) << std::endl;
                     p_Conn->psendMemPointer.reset(); // unique_ptr 释放内存并置空
                 }
             }
@@ -614,6 +614,6 @@ void CSocekt::ServerSendQueueLoop()
     }
     catch (const std::exception& e)
     {
-        ngx_log_stderr(0, "ServerSendQueueLoop caught an exception: %s", e.what());
+        std::cout << "ServerSendQueueLoop caught an exception: " << e.what() << std::endl;
     }
 }

@@ -7,7 +7,7 @@
 #include <errno.h>     //errno
 #include <sys/stat.h>
 #include <fcntl.h>
-
+#include <iostream>
 
 #include "ngx_func.h"
 #include "ngx_macro.h"
@@ -18,7 +18,7 @@ int ngx_daemon()
     switch (fork())  //fork()出来这个子进程才会成为咱们这里讲解的master进程；
     {
     case -1:
-        ngx_log_error_core(NGX_LOG_EMERG,errno, "ngx_daemon()中fork()失败!");
+        std::cout << "ngx_daemon()中fork()失败!" << std::endl;
         return -1;
     case 0:
         break;
@@ -32,7 +32,7 @@ int ngx_daemon()
     
     if (setsid() == -1)  
     {
-        ngx_log_error_core(NGX_LOG_EMERG, errno,"ngx_daemon()中setsid()失败!");
+        std::cout << "ngx_daemon()中setsid()失败!" << std::endl;
         return -1;
     }
     umask(0); 
@@ -41,24 +41,24 @@ int ngx_daemon()
     int fd = open("/dev/null", O_RDWR);
     if (fd == -1) 
     {
-        ngx_log_error_core(NGX_LOG_EMERG,errno,"ngx_daemon()中open(\"/dev/null\")失败!");        
+        std::cout << "ngx_daemon()中open(\"/dev/null\")失败!" << std::endl;
         return -1;
     }
     if (dup2(fd, STDIN_FILENO) == -1) 
     {
-        ngx_log_error_core(NGX_LOG_EMERG,errno,"ngx_daemon()中dup2(STDIN)失败!");        
+        std::cout << "ngx_daemon()中dup2(STDIN)失败!" << std::endl;
         return -1;
     }
     if (dup2(fd, STDOUT_FILENO) == -1)
     {
-        ngx_log_error_core(NGX_LOG_EMERG,errno,"ngx_daemon()中dup2(STDOUT)失败!");
+        std::cout << "ngx_daemon()中dup2(STDOUT)失败!" << std::endl;
         return -1;
     }
     if (fd > STDERR_FILENO)  //fd应该是3，这个应该成立
      {
         if (close(fd) == -1)  //释放资源这样这个文件描述符就可以被复用；不然这个数字【文件描述符】会被一直占着；
         {
-            ngx_log_error_core(NGX_LOG_EMERG,errno, "ngx_daemon()中close(fd)失败!");
+            std::cout << "ngx_daemon()中close(fd)失败!" << std::endl;
             return -1;
         }
     }
